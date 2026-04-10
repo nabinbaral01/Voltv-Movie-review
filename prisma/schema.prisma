@@ -1,0 +1,691 @@
+// VOLTV — Cinematic Social Universe
+// Full PostgreSQL Schema via Prisma
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ─────────────────────────────────────
+// ENUMS
+// ─────────────────────────────────────
+
+enum SubscriptionTier {
+  free
+  pro
+  legend
+}
+
+enum WatchStatus {
+  want_to_watch
+  watching
+  watched
+}
+
+enum VoltVVerdict {
+  skip
+  timepass
+  watchit
+  masterpiece
+}
+
+enum ReviewType {
+  hot_take
+  full_review
+}
+
+enum DebateChoice {
+  a
+  b
+}
+
+enum BadgeType {
+  common
+  rare
+  epic
+  legendary
+}
+
+enum LeaderboardPeriod {
+  weekly
+  monthly
+  alltime
+}
+
+enum NotificationType {
+  friend_logged
+  new_film_director
+  daily_debate_live
+  streak_at_risk
+  badge_unlocked
+  review_liked
+  prediction_result
+  weekly_challenge
+  leaving_streaming
+  weekly_digest
+  system
+}
+
+enum PredictionStatus {
+  pending
+  resolved
+}
+
+// ─────────────────────────────────────
+// USERS
+// ─────────────────────────────────────
+
+model User {
+  id                  String           @id @default(cuid())
+  supabase_id         String           @unique
+  username            String           @unique @db.VarChar(30)
+  password_hash       String?
+  email               String           @unique
+  phone               String?          @unique
+  is_phone_verified   Boolean          @default(false)
+  avatar_url          String?
+  banner_url          String?
+  trailer_url         String?
+  bio                 String?          @db.VarChar(500)
+  personality_type    String?
+  taste_dna           Json?
+  level               Int              @default(1)
+  xp_points           Int              @default(0)
+  streak_count        Int              @default(0)
+  streak_last_date    DateTime?        @db.Date
+  streak_shields      Int              @default(0)
+  subscription_tier   SubscriptionTier @default(free)
+  is_blue_tick        Boolean          @default(false)
+  rating_weight       Float            @default(0.1)
+  is_banned           Boolean          @default(false)
+  is_admin            Boolean          @default(false)
+  invite_code_used    String?
+  invite_code_own     String?          @unique
+  created_at          DateTime         @default(now())
+  last_active         DateTime         @default(now())
+
+  // Relations
+  ratings             Rating[]
+  reviews             Review[]
+  watch_history       WatchHistory[]
+  collections         Collection[]
+  debate_votes        DebateVote[]
+  predictions         Predictions[]
+  achievements        Achievement[]
+  notifications       Notification[]
+  leaderboard_entries Leaderboard[]
+  following           Follow[]         @relation("follower")
+  followers           Follow[]         @relation("following")
+  similarity_a        UserSimilarity[] @relation("user_a")
+  similarity_b        UserSimilarity[] @relation("user_b")
+  review_likes        ReviewLike[]
+  reposts             Repost[]
+  bookmarks           Bookmark[]
+  activity_feed       ActivityFeed[]
+  club_memberships    ClubMember[]
+  clubs_created       MovieClub[]
+  reports_filed       Report[]         @relation("reporter")
+  reports_received    Report[]         @relation("reported_user")
+
+  @@index([username])
+  @@index([email])
+  @@index([subscription_tier])
+  @@index([xp_points])
+  @@index([created_at])
+  @@map("users")
+}
+
+// ─────────────────────────────────────
+// MOVIES
+// ─────────────────────────────────────
+
+model Movie {
+  id                    String    @id @default(cuid())
+  tmdb_id               Int       @unique
+  title                 String
+  original_title        String?
+  overview              String?   @db.Text
+  poster_url            String?
+  backdrop_url          String?
+  trailer_url           String?
+  release_date          DateTime? @db.Date
+  runtime               Int?
+  genres                String[]
+  languages             String[]
+  countries             String[]
+  tmdb_rating           Float?
+  tmdb_popularity       Float?
+  imdb_id               String?
+  imdb_rating           Float?
+  rt_score              Int?
+  voltv_score           Float?
+  voltv_skip_pct        Float     @default(0)
+  voltv_timepass_pct    Float     @default(0)
+  voltv_watchit_pct     Float     @default(0)
+  voltv_masterpiece_pct Float     @default(0)
+  streaming_platforms   Json?
+  total_ratings_count   Int       @default(0)
+  total_reviews_count   Int       @default(0)
+  is_upcoming           Boolean   @default(false)
+  editors_pick          Boolean   @default(false)
+  editors_pick_note     String?
+  created_at            DateTime  @default(now())
+  last_synced           DateTime  @default(now())
+
+  // Relations
+  ratings           Rating[]
+  reviews           Review[]
+  watch_history     WatchHistory[]
+  collection_movies CollectionMovie[]
+  debate_a          DailyDebate[]     @relation("movie_a")
+  debate_b          DailyDebate[]     @relation("movie_b")
+  predictions       Predictions[]
+  notifications     Notification[]
+  activity_feed     ActivityFeed[]
+
+  @@index([tmdb_id])
+  @@index([voltv_score])
+  @@index([release_date])
+  @@index([tmdb_popularity])
+  @@map("movies")
+}
+
+// ─────────────────────────────────────
+// RATINGS (core — anti-manipulation)
+// ─────────────────────────────────────
+
+model Rating {
+  id             String       @id @default(cuid())
+  user_id        String
+  movie_id       String
+  story          Int          @db.SmallInt
+  direction      Int          @db.SmallInt
+  acting         Int          @db.SmallInt
+  visuals        Int          @db.SmallInt
+  rewatch        Int          @db.SmallInt
+  voltv_verdict  VoltVVerdict
+  overall_score  Float
+  weight_applied Float        @default(1.0)
+  created_at     DateTime     @default(now())
+  updated_at     DateTime     @updatedAt
+
+  user  User  @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  movie Movie @relation(fields: [movie_id], references: [id], onDelete: Cascade)
+
+  @@unique([user_id, movie_id])
+  @@index([movie_id])
+  @@index([user_id])
+  @@index([created_at])
+  @@map("ratings")
+}
+
+// ─────────────────────────────────────
+// REVIEWS
+// ─────────────────────────────────────
+
+model Review {
+  id               String     @id @default(cuid())
+  user_id          String
+  movie_id         String?
+  content          String     @db.Text
+  type             ReviewType
+  is_spoiler       Boolean    @default(false)
+  likes_count      Int        @default(0)
+  reposts_count    Int        @default(0)
+  replies_count    Int        @default(0)
+  reports_count    Int        @default(0)
+  is_hidden        Boolean    @default(false)
+  hidden_reason    String?
+  // Rich post fields
+  media_urls       String[]   @default([])
+  media_type       String?    // "image" | "video"
+  is_anonymous     Boolean    @default(false)
+  visibility       String     @default("public") // "public" | "unlisted" | "followers"
+  edited_at        DateTime?
+  // Twitter-style thread fields
+  parent_id        String?    // reply to another post
+  quoted_review_id String?    // quote-post
+  created_at       DateTime   @default(now())
+  updated_at       DateTime   @updatedAt
+
+  user    User         @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  movie   Movie?       @relation(fields: [movie_id], references: [id], onDelete: Cascade)
+  likes   ReviewLike[]
+  reports Report[]     @relation("review_reports")
+
+  parent  Review?  @relation("ReviewReplies", fields: [parent_id], references: [id], onDelete: SetNull)
+  replies Review[] @relation("ReviewReplies")
+
+  quoted       Review?  @relation("ReviewQuotes", fields: [quoted_review_id], references: [id], onDelete: SetNull)
+  quoted_by    Review[] @relation("ReviewQuotes")
+
+  reposts   Repost[]
+  bookmarks Bookmark[]
+
+  @@index([movie_id])
+  @@index([user_id])
+  @@index([type])
+  @@index([is_hidden])
+  @@index([parent_id])
+  @@index([quoted_review_id])
+  @@map("reviews")
+}
+
+model ReviewLike {
+  id        String   @id @default(cuid())
+  user_id   String
+  review_id String
+  created_at DateTime @default(now())
+
+  user   User   @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  review Review @relation(fields: [review_id], references: [id], onDelete: Cascade)
+
+  @@unique([user_id, review_id])
+  @@map("review_likes")
+}
+
+model Repost {
+  id         String   @id @default(cuid())
+  user_id    String
+  review_id  String
+  created_at DateTime @default(now())
+
+  user   User   @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  review Review @relation(fields: [review_id], references: [id], onDelete: Cascade)
+
+  @@unique([user_id, review_id])
+  @@index([review_id])
+  @@index([user_id, created_at])
+  @@map("reposts")
+}
+
+model Bookmark {
+  id         String   @id @default(cuid())
+  user_id    String
+  review_id  String
+  created_at DateTime @default(now())
+
+  user   User   @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  review Review @relation(fields: [review_id], references: [id], onDelete: Cascade)
+
+  @@unique([user_id, review_id])
+  @@index([user_id, created_at])
+  @@map("bookmarks")
+}
+
+// ─────────────────────────────────────
+// WATCH HISTORY (powers heatmap)
+// ─────────────────────────────────────
+
+model WatchHistory {
+  id             String      @id @default(cuid())
+  user_id        String
+  movie_id       String
+  watched_date   DateTime    @db.Date
+  status         WatchStatus @default(want_to_watch)
+  personal_notes String?     @db.Text
+  rewatch_count  Int         @default(0)
+  created_at     DateTime    @default(now())
+  updated_at     DateTime    @updatedAt
+
+  user  User  @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  movie Movie @relation(fields: [movie_id], references: [id], onDelete: Cascade)
+
+  @@unique([user_id, movie_id])
+  @@index([user_id, watched_date])
+  @@index([watched_date])
+  @@map("watch_history")
+}
+
+// ─────────────────────────────────────
+// COLLECTIONS
+// ─────────────────────────────────────
+
+model Collection {
+  id              String   @id @default(cuid())
+  user_id         String
+  title           String   @db.VarChar(100)
+  description     String?  @db.VarChar(500)
+  cover_image_url String?
+  mood_tag        String?
+  genre_tag       String?
+  is_public       Boolean  @default(true)
+  likes_count     Int      @default(0)
+  created_at      DateTime @default(now())
+  updated_at      DateTime @updatedAt
+
+  user   User              @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  movies CollectionMovie[]
+
+  @@index([user_id])
+  @@index([is_public])
+  @@map("collections")
+}
+
+model CollectionMovie {
+  collection_id String
+  movie_id      String
+  added_at      DateTime @default(now())
+  position      Int      @default(0)
+
+  collection Collection @relation(fields: [collection_id], references: [id], onDelete: Cascade)
+  movie      Movie      @relation(fields: [movie_id], references: [id], onDelete: Cascade)
+
+  @@id([collection_id, movie_id])
+  @@map("collection_movies")
+}
+
+// ─────────────────────────────────────
+// DAILY DEBATES
+// ─────────────────────────────────────
+
+model DailyDebate {
+  id          String   @id @default(cuid())
+  question    String
+  option_a    String
+  option_b    String
+  category    String   @default("general")
+  movie_a_id  String
+  movie_b_id  String
+  votes_a     Int      @default(0)
+  votes_b     Int      @default(0)
+  debate_date DateTime @db.Date
+  expires_at  DateTime
+  created_at  DateTime @default(now())
+
+  movie_a Movie        @relation("movie_a", fields: [movie_a_id], references: [id])
+  movie_b Movie        @relation("movie_b", fields: [movie_b_id], references: [id])
+  votes   DebateVote[]
+
+  @@unique([debate_date, category])
+  @@index([debate_date])
+  @@index([category])
+  @@map("daily_debates")
+}
+
+model DebateVote {
+  id         String       @id @default(cuid())
+  user_id    String
+  debate_id  String
+  choice     DebateChoice
+  created_at DateTime     @default(now())
+
+  user   User        @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  debate DailyDebate @relation(fields: [debate_id], references: [id], onDelete: Cascade)
+
+  @@unique([user_id, debate_id])
+  @@map("debate_votes")
+}
+
+// ─────────────────────────────────────
+// PREDICTIONS
+// ─────────────────────────────────────
+
+model Predictions {
+  id              String           @id @default(cuid())
+  user_id         String
+  movie_id        String
+  predicted_score Float
+  actual_score    Float?
+  accuracy_pct    Float?
+  status          PredictionStatus @default(pending)
+  created_at      DateTime         @default(now())
+  resolved_at     DateTime?
+
+  user  User  @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  movie Movie @relation(fields: [movie_id], references: [id], onDelete: Cascade)
+
+  @@unique([user_id, movie_id])
+  @@index([user_id])
+  @@index([status])
+  @@map("predictions")
+}
+
+// ─────────────────────────────────────
+// USER SIMILARITY (collaborative filter)
+// ─────────────────────────────────────
+
+model UserSimilarity {
+  id                  String   @id @default(cuid())
+  user_a_id           String
+  user_b_id           String
+  similarity_score    Float
+  common_movies_count Int      @default(0)
+  last_calculated     DateTime @default(now())
+
+  user_a User @relation("user_a", fields: [user_a_id], references: [id], onDelete: Cascade)
+  user_b User @relation("user_b", fields: [user_b_id], references: [id], onDelete: Cascade)
+
+  @@unique([user_a_id, user_b_id])
+  @@index([user_a_id, similarity_score])
+  @@map("user_similarity")
+}
+
+// ─────────────────────────────────────
+// ACHIEVEMENTS / BADGES
+// ─────────────────────────────────────
+
+model Achievement {
+  id          String    @id @default(cuid())
+  user_id     String
+  badge_id    String
+  badge_name  String
+  badge_type  BadgeType
+  badge_icon  String
+  description String?
+  earned_at   DateTime  @default(now())
+
+  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@unique([user_id, badge_id])
+  @@index([user_id])
+  @@index([badge_type])
+  @@map("achievements")
+}
+
+// ─────────────────────────────────────
+// FOLLOWS
+// ─────────────────────────────────────
+
+model Follow {
+  follower_id  String
+  following_id String
+  created_at   DateTime @default(now())
+
+  follower  User @relation("follower", fields: [follower_id], references: [id], onDelete: Cascade)
+  following User @relation("following", fields: [following_id], references: [id], onDelete: Cascade)
+
+  @@id([follower_id, following_id])
+  @@index([following_id])
+  @@map("follows")
+}
+
+// ─────────────────────────────────────
+// NOTIFICATIONS
+// ─────────────────────────────────────
+
+model Notification {
+  id               String           @id @default(cuid())
+  user_id          String
+  type             NotificationType
+  message          String
+  is_read          Boolean          @default(false)
+  related_movie_id String?
+  related_user_id  String?
+  created_at       DateTime         @default(now())
+
+  user          User   @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  related_movie Movie? @relation(fields: [related_movie_id], references: [id], onDelete: SetNull)
+
+  @@index([user_id, is_read])
+  @@index([created_at])
+  @@map("notifications")
+}
+
+// ─────────────────────────────────────
+// LEADERBOARD
+// ─────────────────────────────────────
+
+model Leaderboard {
+  id             String            @id @default(cuid())
+  user_id        String
+  period         LeaderboardPeriod
+  genre_category String?
+  movies_count   Int               @default(0)
+  review_count   Int               @default(0)
+  xp_total       Int               @default(0)
+  streak_max     Int               @default(0)
+  rank           Int               @default(0)
+  period_start   DateTime          @db.Date
+  created_at     DateTime          @default(now())
+  updated_at     DateTime          @updatedAt
+
+  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@unique([user_id, period, period_start])
+  @@index([period, period_start, xp_total])
+  @@map("leaderboard")
+}
+
+// ─────────────────────────────────────
+// WEEKLY CHALLENGES
+// ─────────────────────────────────────
+
+model WeeklyChallenge {
+  id          String   @id @default(cuid())
+  title       String
+  description String
+  requirement Json
+  xp_reward   Int      @default(50)
+  badge_id    String?
+  week_start  DateTime @unique @db.Date
+  expires_at  DateTime
+  created_at  DateTime @default(now())
+
+  completions ChallengeCompletion[]
+
+  @@map("weekly_challenges")
+}
+
+model ChallengeCompletion {
+  id           String   @id @default(cuid())
+  user_id      String
+  challenge_id String
+  completed_at DateTime @default(now())
+
+  challenge WeeklyChallenge @relation(fields: [challenge_id], references: [id], onDelete: Cascade)
+
+  @@unique([user_id, challenge_id])
+  @@map("challenge_completions")
+}
+
+// ─────────────────────────────────────
+// ACTIVITY FEED
+// ─────────────────────────────────────
+
+model ActivityFeed {
+  id            String   @id @default(cuid())
+  user_id       String
+  activity_type String
+  movie_id      String?
+  metadata      Json?
+  created_at    DateTime @default(now())
+
+  user  User   @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  movie Movie? @relation(fields: [movie_id], references: [id], onDelete: SetNull)
+
+  @@index([user_id, created_at])
+  @@index([created_at])
+  @@map("activity_feed")
+}
+
+// ─────────────────────────────────────
+// MOVIE CLUBS (groups)
+// ─────────────────────────────────────
+
+model MovieClub {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  owner_id    String
+  cover_url   String?
+  is_private  Boolean  @default(false)
+  max_members Int      @default(50)
+  created_at  DateTime @default(now())
+
+  owner   User         @relation(fields: [owner_id], references: [id], onDelete: Cascade)
+  members ClubMember[]
+
+  @@map("movie_clubs")
+}
+
+model ClubMember {
+  club_id   String
+  user_id   String
+  role      String   @default("member")
+  joined_at DateTime @default(now())
+
+  club MovieClub @relation(fields: [club_id], references: [id], onDelete: Cascade)
+  user User      @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@id([club_id, user_id])
+  @@map("club_members")
+}
+
+// ─────────────────────────────────────
+// REPORTS (content moderation)
+// ─────────────────────────────────────
+
+model Report {
+  id               String   @id @default(cuid())
+  reporter_id      String
+  reported_user_id String?
+  review_id        String?
+  reason           String
+  status           String   @default("pending")
+  resolved_by      String?
+  created_at       DateTime @default(now())
+
+  reporter      User    @relation("reporter", fields: [reporter_id], references: [id], onDelete: Cascade)
+  reported_user User?   @relation("reported_user", fields: [reported_user_id], references: [id], onDelete: SetNull)
+  review        Review? @relation("review_reports", fields: [review_id], references: [id], onDelete: SetNull)
+
+  @@index([status])
+  @@map("reports")
+}
+
+// ─────────────────────────────────────
+// INVITE CODES (beta)
+// ─────────────────────────────────────
+
+model InviteCode {
+  id         String    @id @default(cuid())
+  code       String    @unique
+  created_by String?
+  used_by    String?
+  used_at    DateTime?
+  expires_at DateTime?
+  created_at DateTime  @default(now())
+
+  @@map("invite_codes")
+}
+
+// ─────────────────────────────────────
+// RATE LIMIT LOG (anti-abuse)
+// ─────────────────────────────────────
+
+model RateLimitLog {
+  id           String   @id @default(cuid())
+  identifier   String
+  action       String
+  count        Int      @default(1)
+  window_start DateTime
+  created_at   DateTime @default(now())
+
+  @@unique([identifier, action, window_start])
+  @@index([identifier, action])
+  @@map("rate_limit_log")
+}
