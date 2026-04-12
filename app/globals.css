@@ -1,0 +1,326 @@
+@import "tailwindcss";
+@config "../tailwind.config.ts";
+
+/* ─────────────────────────────────────
+   VOLTV Global Styles — Dark Mode Only
+   ───────────────────────────────────── */
+
+@theme {
+  /* ── VOLTV Color Tokens ──────────────────── */
+  --color-bg-primary:   #0A0A0F;
+  --color-bg-secondary: #12121A;
+  --color-bg-tertiary:  #1A1A28;
+
+  --color-accent-red:   #E50914;
+  --color-accent-gold:  #F5A623;
+  --color-accent-green: #22C55E;
+
+  --color-verified: #3B82F6;
+  --color-pro:      #8B5CF6;
+
+  --color-text-primary:   #FFFFFF;
+  --color-text-secondary: #A0A0B0;
+  --color-text-muted:     #505060;
+
+  --color-border:  #1E1E2E;
+  --color-glass:   rgba(255,255,255,0.05);
+  --color-surface: #12121A;
+  --color-elevated: #1A1A28;
+
+  /* ── Typography ─────────────────────────── */
+  --font-display: var(--font-bebas), Impact, sans-serif;
+  --font-heading: var(--font-clash), system-ui, sans-serif;
+  --font-body:    var(--font-dm-sans), system-ui, sans-serif;
+  --font-mono:    var(--font-jetbrains), ui-monospace, monospace;
+
+  /* ── Animations ─────────────────────────── */
+  --animate-fade-in:      fadeIn 300ms ease-out;
+  --animate-slide-up:     slideUp 300ms ease-out;
+  --animate-scale-in:     scaleIn 200ms ease-out;
+  --animate-shimmer:      shimmer 1.5s ease-in-out infinite;
+  --animate-xp-pop:       xpPop 600ms cubic-bezier(0.34,1.56,0.64,1);
+  --animate-badge-unlock: badgeUnlock 800ms cubic-bezier(0.34,1.56,0.64,1);
+  --animate-streak-fire:  streakFire 0.5s ease-out;
+  --animate-pulse-red:    pulseRed 2s ease-in-out infinite;
+}
+
+@layer base {
+  *, *::before, *::after {
+    box-sizing: border-box;
+  }
+
+  html {
+    scroll-behavior: smooth;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    background-color: #0A0A0F;
+    color: #FFFFFF;
+    font-family: var(--font-dm-sans, 'DM Sans', system-ui, sans-serif);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Custom scrollbar */
+  ::-webkit-scrollbar       { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: #12121A; }
+  ::-webkit-scrollbar-thumb { background: #2A2A3E; border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: #3A3A5E; }
+
+  ::selection {
+    background: rgba(229, 9, 20, 0.3);
+    color: #fff;
+  }
+
+  :focus-visible {
+    outline: 2px solid #E50914;
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+}
+
+@layer components {
+  /* ── Glassmorphism ──────────────────────────── */
+  .glass {
+    background: rgba(255, 255, 255, 0.04);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+  }
+
+  .glass-strong {
+    background: rgba(18, 18, 26, 0.92);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+  }
+
+  /* ── Cards ──────────────────────────────────── */
+  .card {
+    background: #12121A;
+    border-radius: 12px;
+    border: 1px solid #1E1E2E;
+    transition: all 300ms ease;
+  }
+
+  .card:hover {
+    border-color: rgba(255, 255, 255, 0.12);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+  }
+
+  .card-elevated {
+    background: #1A1A28;
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.06);
+  }
+
+  /* ── Skeleton loader ────────────────────────── */
+  .skeleton {
+    background: linear-gradient(
+      90deg,
+      #1A1A28 25%,
+      #22223A 50%,
+      #1A1A28 75%
+    );
+    background-size: 200% 100%;
+    animation: shimmer 1.5s ease-in-out infinite;
+    border-radius: 6px;
+  }
+
+  /* ── Movie poster card ──────────────────────── */
+  .poster-card {
+    position: relative;
+    overflow: hidden;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: transform 300ms ease, box-shadow 300ms ease;
+  }
+
+  .poster-card:hover {
+    transform: translateY(-4px) scale(1.02);
+    box-shadow: 0 16px 48px rgba(0, 0, 0, 0.6);
+  }
+
+  /* ── Buttons ────────────────────────────────── */
+  .btn-primary {
+    background: #E50914;
+    color: white;
+    font-weight: 600;
+    padding: 10px 20px;
+    border-radius: 8px;
+    border: none;
+    cursor: pointer;
+    transition: all 200ms ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .btn-primary:hover {
+    background: #cc0812;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 16px rgba(229, 9, 20, 0.4);
+  }
+
+  .btn-primary:active { transform: translateY(0); }
+
+  .btn-secondary {
+    background: rgba(255, 255, 255, 0.06);
+    color: white;
+    font-weight: 600;
+    padding: 10px 20px;
+    border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    cursor: pointer;
+    transition: all 200ms ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .btn-secondary:hover {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: rgba(255, 255, 255, 0.2);
+  }
+
+  /* ── Heatmap intensity cells (GitHub green, default) ────── */
+  .heatmap-cell-0 { background: #1A1A28; }
+  .heatmap-cell-1 { background: #1a4731; }
+  .heatmap-cell-2 { background: #207844; }
+  .heatmap-cell-3 { background: #22c55e; }
+  .heatmap-cell-4 { background: #4ade80; }
+
+  /* ── Theme variants (apply via [data-heatmap-theme="x"]) ── */
+  [data-heatmap-theme="red"]    .heatmap-cell-1 { background: #450a0a; }
+  [data-heatmap-theme="red"]    .heatmap-cell-2 { background: #991b1b; }
+  [data-heatmap-theme="red"]    .heatmap-cell-3 { background: #E50914; }
+  [data-heatmap-theme="red"]    .heatmap-cell-4 { background: #f87171; }
+
+  [data-heatmap-theme="purple"] .heatmap-cell-1 { background: #3b0764; }
+  [data-heatmap-theme="purple"] .heatmap-cell-2 { background: #6d28d9; }
+  [data-heatmap-theme="purple"] .heatmap-cell-3 { background: #8B5CF6; }
+  [data-heatmap-theme="purple"] .heatmap-cell-4 { background: #c4b5fd; }
+
+  [data-heatmap-theme="blue"]   .heatmap-cell-1 { background: #0c2d48; }
+  [data-heatmap-theme="blue"]   .heatmap-cell-2 { background: #1e40af; }
+  [data-heatmap-theme="blue"]   .heatmap-cell-3 { background: #3B82F6; }
+  [data-heatmap-theme="blue"]   .heatmap-cell-4 { background: #93c5fd; }
+
+  [data-heatmap-theme="gold"]   .heatmap-cell-1 { background: #451a03; }
+  [data-heatmap-theme="gold"]   .heatmap-cell-2 { background: #b45309; }
+  [data-heatmap-theme="gold"]   .heatmap-cell-3 { background: #F5A623; }
+  [data-heatmap-theme="gold"]   .heatmap-cell-4 { background: #fcd34d; }
+
+  /* ── VOLTV verdict meter bars ───────────────── */
+  .meter-skip        { background: linear-gradient(90deg, #4B5563, #6B7280); }
+  .meter-timepass    { background: linear-gradient(90deg, #B45309, #D97706); }
+  .meter-watchit     { background: linear-gradient(90deg, #1D4ED8, #3B82F6); }
+  .meter-masterpiece { background: linear-gradient(90deg, #B91C1C, #E50914); }
+
+  /* ── Spoiler blur ───────────────────────────── */
+  .spoiler-blur {
+    filter: blur(6px);
+    user-select: none;
+    transition: filter 300ms ease;
+    cursor: pointer;
+  }
+  .spoiler-blur.revealed { filter: none; cursor: default; }
+
+  /* ── Streak fire glow ───────────────────────── */
+  .streak-active {
+    color: #FF6B00;
+    text-shadow: 0 0 12px rgba(255, 107, 0, 0.6);
+  }
+
+  /* ── Movie grid ─────────────────────────────── */
+  .movie-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 16px;
+  }
+
+  @media (min-width: 640px) {
+    .movie-grid { grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); }
+  }
+
+  @media (min-width: 1024px) {
+    .movie-grid { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); }
+  }
+}
+
+@layer utilities {
+  .text-gradient-red {
+    background: linear-gradient(135deg, #E50914, #FF4444);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .text-gradient-gold {
+    background: linear-gradient(135deg, #F5A623, #FFD700);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .no-scrollbar::-webkit-scrollbar { display: none; }
+  .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+  .pb-safe { padding-bottom: env(safe-area-inset-bottom); }
+  .pt-safe { padding-top: env(safe-area-inset-top); }
+}
+
+/* ── Keyframe animations ─────────────────────── */
+@keyframes shimmer {
+  0%   { background-position: -200% 0; }
+  100% { background-position:  200% 0; }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes scaleIn {
+  from { opacity: 0; transform: scale(0.95); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+@keyframes xpPop {
+  0%   { opacity: 0; transform: translateY(0) scale(0.5); }
+  60%  { opacity: 1; transform: translateY(-20px) scale(1.1); }
+  100% { opacity: 0; transform: translateY(-40px) scale(1); }
+}
+
+@keyframes badgeUnlock {
+  0%   { opacity: 0; transform: scale(0.3) rotate(-10deg); }
+  60%  { opacity: 1; transform: scale(1.1) rotate(3deg); }
+  100% { opacity: 1; transform: scale(1) rotate(0deg); }
+}
+
+@keyframes streakFire {
+  0%, 100% { transform: scale(1); }
+  50%       { transform: scale(1.3); }
+}
+
+@keyframes pulseRed {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(229, 9, 20, 0.4); }
+  50%       { box-shadow: 0 0 0 8px rgba(229, 9, 20, 0); }
+}
+
+@keyframes floatCol {
+  0%   { transform: translateY(0); }
+  100% { transform: translateY(-50%); }
+}
+
+.animate-float-col {
+  animation: floatCol linear infinite;
+}
