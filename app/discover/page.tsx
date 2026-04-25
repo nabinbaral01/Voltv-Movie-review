@@ -22,6 +22,8 @@ function tmdbToCard(m: { id: number; title: string; poster_path: string | null; 
   };
 }
 
+type DiscoverKind = "movie" | "tv";
+
 const MOOD_GRADIENTS: Record<string, string> = {
   feel_good:    "from-[#F59E0B] to-[#EA580C]",
   emotional:    "from-[#6366F1] to-[#4338CA]",
@@ -70,7 +72,7 @@ const MOOD_GENRE_IDS: Record<string, string> = {
 export default async function DiscoverPage({
   searchParams,
 }: {
-  searchParams: Promise<{ mood?: string; decade?: string; country?: string; type?: string; sort?: string; filter?: string }>;
+  searchParams: Promise<{ mood?: string; decade?: string; country?: string; kind?: string; sort?: string; filter?: string }>;
 }) {
   const sp      = await searchParams;
   const moodParam = sp.mood;
@@ -79,7 +81,7 @@ export default async function DiscoverPage({
     : [];
   const decade  = sp.decade;
   const country = sp.country && COUNTRIES.some((c) => c.code === sp.country) ? sp.country : undefined;
-  const type    = (["tv", "anime"].includes(sp.type ?? "") ? sp.type : "movie") as "movie" | "tv" | "anime";
+  const kind: DiscoverKind = sp.kind === "tv" ? "tv" : "movie";
 
   const [trending, topRated, upcoming] = await Promise.all([
     getTrending("week").then((d) => d.results.slice(0, 10).map(tmdbToCard)).catch(() => [] as MovieCard[]),
@@ -94,7 +96,7 @@ export default async function DiscoverPage({
   let filtered: MovieCard[] = [];
   let filterTitle = "";
 
-  if (moods.length > 0 || decade || country || type !== "movie") {
+  if (moods.length > 0 || decade || country || kind !== "movie") {
     const tagLabels = moods
       .map((m) => MOOD_TAGS.find((t) => t.id === m)?.label)
       .filter(Boolean) as string[];
@@ -103,6 +105,7 @@ export default async function DiscoverPage({
     if (tagLabels.length) parts.push(tagLabels.join(" + "));
     if (decade) parts.push(`${decade}s`);
     if (ctry) parts.push(`${ctry.flag} ${ctry.label}`);
+    if (kind === "tv") parts.push("TV");
     filterTitle = parts.join(" · ");
 
     const params: Record<string, string | number> = { sort_by: "popularity.desc" };
@@ -121,33 +124,22 @@ export default async function DiscoverPage({
         params["vote_average.gte"] = 7;
       }
     }
-    const fetcher = type === "movie"
-      ? discoverMovies(params)
-      : discoverTV({
-          ...params,
-          // anime = animation genre + Japan origin
-          ...(type === "anime"
-            ? {
-                with_genres:         params.with_genres ? `${params.with_genres},16` : "16",
-                with_origin_country: "JP",
-              }
-            : {}),
-        });
+    const fetcher = kind === "tv" ? discoverTV(params) : discoverMovies(params);
     filtered = await fetcher
       .then((d) => d.results.slice(0, 20).map(tmdbToCard))
       .catch(() => [] as MovieCard[]);
   }
 
-  const buildHref = (overrides: { mood?: string[] | null; decade?: string | null; country?: string | null; type?: "movie" | "tv" | "anime" }) => {
+  const buildHref = (overrides: { mood?: string[] | null; decade?: string | null; country?: string | null; kind?: DiscoverKind }) => {
     const nextMoods   = overrides.mood    === undefined ? moods   : (overrides.mood ?? []);
     const nextDecade  = overrides.decade  === undefined ? decade  : overrides.decade;
     const nextCountry = overrides.country === undefined ? country : overrides.country;
-    const nextType    = overrides.type    === undefined ? type    : overrides.type;
+    const nextKind    = overrides.kind    === undefined ? kind    : overrides.kind;
     const qs = new URLSearchParams();
     if (nextMoods.length)      qs.set("mood", nextMoods.join(","));
     if (nextDecade)            qs.set("decade", nextDecade);
     if (nextCountry)           qs.set("country", nextCountry);
-    if (nextType !== "movie")  qs.set("type", nextType);
+    if (nextKind !== "movie")  qs.set("kind", nextKind);
     const s = qs.toString();
     return s ? `/discover?${s}` : "/discover";
   };
@@ -168,13 +160,11 @@ export default async function DiscoverPage({
 
           {/* MOOD SELECTOR */}
           <section>
-            <div className="flex items-end justify-between mb-5">
-              <div>
-                <h2 className="text-xl font-bold text-white tracking-tight">Browse by Mood</h2>
-                <p className="text-xs text-[#6B6B80] mt-1">Pick one or more vibes — tap to toggle</p>
-              </div>
+            <div className="flex items-baseline justify-between mb-3">
+              <h2 className="text-base font-semibold text-white tracking-tight">Mood</h2>
+              <p className="text-[11px] text-[#6B6B80]">Tap to toggle · multi-select</p>
             </div>
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+            <div className="flex flex-wrap gap-1.5">
               {MOOD_TAGS.map((tag) => {
                 const active = moods.includes(tag.id);
                 const gradient = MOOD_GRADIENTS[tag.id] ?? "from-[#3A3A50] to-[#1A1A28]";
@@ -182,14 +172,16 @@ export default async function DiscoverPage({
                   <Link
                     key={tag.id}
                     href={toggleMoodHref(tag.id)}
-                    className={`group relative overflow-hidden rounded-xl p-4 h-[88px] flex flex-col justify-between border transition-all
+                    className={`group relative overflow-hidden rounded-full h-8 pl-2.5 pr-3 flex items-center gap-1.5 text-[12.5px] font-medium border transition-all
                       ${active
-                        ? "border-white/40 ring-1 ring-white/30 scale-[1.02]"
-                        : "border-white/5 hover:border-white/20 hover:-translate-y-0.5"}`}
+                        ? "border-white/30 text-white shadow-sm"
+                        : "border-[#1E1E2E] bg-[#12121A] text-[#C8C8D4] hover:border-white/20 hover:text-white"}`}
                   >
-                    <div className={`absolute inset-0 bg-gradient-to-br ${gradient} ${active ? "opacity-90" : "opacity-70 group-hover:opacity-90"} transition-opacity`} />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
-                    <span className="relative text-sm font-semibold text-white tracking-tight">{tag.label}</span>
+                    {active && (
+                      <span className={`absolute inset-0 bg-gradient-to-r ${gradient} opacity-85`} />
+                    )}
+                    <span className={`relative inline-block h-2 w-2 rounded-full bg-gradient-to-br ${gradient} ${active ? "ring-1 ring-white/60" : ""}`} />
+                    <span className="relative">{tag.label}</span>
                   </Link>
                 );
               })}
@@ -198,65 +190,57 @@ export default async function DiscoverPage({
 
           {/* DECADE SELECTOR */}
           <section>
-            <div className="flex items-end justify-between mb-5">
-              <div>
-                <h2 className="text-xl font-bold text-white tracking-tight">Browse by Decade</h2>
-                <p className="text-xs text-[#6B6B80] mt-1">Travel through cinema history</p>
-              </div>
+            <div className="flex items-baseline justify-between mb-3">
+              <h2 className="text-base font-semibold text-white tracking-tight">Decade</h2>
+              <p className="text-[11px] text-[#6B6B80]">Travel through cinema</p>
             </div>
-            <div className="relative">
-              <div className="absolute left-0 right-0 top-1/2 h-px bg-gradient-to-r from-transparent via-[#2A2A40] to-transparent" />
-              <div className="relative flex flex-wrap gap-2 justify-between">
-                {DECADES.map((d) => {
-                  const yr = d.replace("s", "");
-                  const active = decade === yr;
-                  return (
-                    <Link
-                      key={d}
-                      href={active ? buildHref({ decade: null }) : decadeHref(yr)}
-                      className={`relative flex-1 min-w-[84px] px-4 py-3 rounded-lg text-center font-mono font-bold text-sm tracking-wider transition-all
-                        ${active
-                          ? "bg-gradient-to-br from-[#F5A623] to-[#E50914] text-white shadow-lg shadow-[#E50914]/20 scale-105"
-                          : "bg-[#12121A] border border-[#1E1E2E] text-[#A0A0B0] hover:border-[#F5A623]/40 hover:text-white hover:-translate-y-0.5"
-                        }`}
-                    >
-                      {d}
-                    </Link>
-                  );
-                })}
-              </div>
+            <div className="flex flex-wrap gap-1.5">
+              {DECADES.map((d) => {
+                const yr = d.replace("s", "");
+                const active = decade === yr;
+                return (
+                  <Link
+                    key={d}
+                    href={active ? buildHref({ decade: null }) : decadeHref(yr)}
+                    className={`h-8 px-3 rounded-full text-[12.5px] font-mono font-semibold tracking-wide flex items-center transition-all
+                      ${active
+                        ? "bg-gradient-to-r from-[#F5A623] to-[#E50914] text-white border border-white/20 shadow-sm"
+                        : "bg-[#12121A] border border-[#1E1E2E] text-[#C8C8D4] hover:border-[#F5A623]/40 hover:text-white"
+                      }`}
+                  >
+                    {d}
+                  </Link>
+                );
+              })}
             </div>
           </section>
 
-          {/* COUNTRY SELECTOR */}
+          {/* COUNTRY + KIND */}
           <section>
-            <div className="flex items-end justify-between mb-5">
-              <div>
-                <h2 className="text-xl font-bold text-white tracking-tight">Browse by Country</h2>
-                <p className="text-xs text-[#6B6B80] mt-1">Cinema from around the world</p>
-              </div>
+            <div className="flex items-baseline justify-between mb-3">
+              <h2 className="text-base font-semibold text-white tracking-tight">Country &amp; type</h2>
+              <p className="text-[11px] text-[#6B6B80]">Narrow by region</p>
             </div>
-            <div className="flex flex-wrap items-center gap-3">
+            <div className="flex flex-wrap items-center gap-2">
               <CountryDropdown
                 countries={COUNTRIES.map((c) => ({ ...c, href: countryHref(c.code) }))}
                 active={country}
                 clearHref={buildHref({ country: null })}
               />
-              <div className="flex items-center gap-1.5 p-1 bg-[#12121A] border border-[#1E1E2E] rounded-lg">
+              <div className="flex items-center gap-1 p-0.5 bg-[#12121A] border border-[#1E1E2E] rounded-full h-8">
                 {([
                   { id: "movie", label: "Movies" },
-                  { id: "tv",    label: "TV Shows" },
-                  { id: "anime", label: "Anime" },
+                  { id: "tv",    label: "TV Series" },
                 ] as const).map((t) => {
-                  const active = type === t.id;
+                  const active = kind === t.id;
                   return (
                     <Link
                       key={t.id}
-                      href={buildHref({ type: t.id })}
-                      className={`px-3.5 py-1.5 rounded-md text-sm font-medium transition-all
+                      href={buildHref({ kind: t.id })}
+                      className={`px-3 h-7 flex items-center rounded-full text-[12.5px] font-medium transition-all
                         ${active
-                          ? "bg-gradient-to-r from-[#3B82F6] to-[#8B5CF6] text-white shadow-md"
-                          : "text-[#A0A0B0] hover:text-white hover:bg-white/[0.04]"
+                          ? "bg-gradient-to-r from-[#3B82F6] to-[#8B5CF6] text-white"
+                          : "text-[#A0A0B0] hover:text-white"
                         }`}
                     >
                       {t.label}
@@ -272,13 +256,17 @@ export default async function DiscoverPage({
             <section>
               <h2 className="text-lg font-bold text-white mb-4">{filterTitle}</h2>
               <div className="movie-grid">
-                {filtered.map((movie) => (
-                  <Link key={movie.id} href={`/movie/${movie.tmdb_id}`} className="poster-card aspect-[2/3] bg-[#1A1A28]">
-                    {movie.poster_url && (
-                      <img src={movie.poster_url} alt={movie.title} className="w-full h-full object-cover" loading="lazy" />
+                {filtered.map((item) => (
+                  <Link
+                    key={item.id}
+                    href={kind === "tv" ? `/tv/${item.tmdb_id}` : `/movie/${item.tmdb_id}`}
+                    className="poster-card aspect-[2/3] bg-[#1A1A28]"
+                  >
+                    {item.poster_url && (
+                      <img src={item.poster_url} alt={item.title} className="w-full h-full object-cover" loading="lazy" />
                     )}
                     <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 hover:opacity-100 transition-opacity flex items-end p-2">
-                      <p className="text-xs font-semibold text-white line-clamp-2">{movie.title}</p>
+                      <p className="text-xs font-semibold text-white line-clamp-2">{item.title}</p>
                     </div>
                   </Link>
                 ))}
@@ -287,22 +275,22 @@ export default async function DiscoverPage({
           )}
 
           {/* Trending This Week */}
-          {!moods.length && !decade && !country && type === "movie" && trending.length > 0 && (
+          {!moods.length && !decade && !country && kind === "movie" &&trending.length > 0 && (
             <MovieRow title="🔥 Trending This Week" movies={trending} />
           )}
 
           {/* Top Rated All Time */}
-          {!moods.length && !decade && !country && type === "movie" && topRated.length > 0 && (
+          {!moods.length && !decade && !country && kind === "movie" &&topRated.length > 0 && (
             <MovieRow title="⭐ Highest Rated" movies={topRated} />
           )}
 
           {/* Upcoming */}
-          {!moods.length && !decade && !country && type === "movie" && upcoming.length > 0 && (
+          {!moods.length && !decade && !country && kind === "movie" &&upcoming.length > 0 && (
             <MovieRow title="📅 Coming Soon" movies={upcoming} />
           )}
 
           {/* STREAMING SERVICES */}
-          {!moods.length && !decade && !country && type === "movie" && (
+          {!moods.length && !decade && !country && kind === "movie" &&(
             <section>
               <h2 className="text-lg font-bold text-white mb-4">📺 By Platform</h2>
               <div className="flex flex-wrap gap-2">

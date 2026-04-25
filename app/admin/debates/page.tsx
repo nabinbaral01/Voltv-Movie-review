@@ -1,6 +1,8 @@
 import Link from "next/link";
 import Image from "next/image";
+import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
+import { requireLiveAdmin } from "@/lib/admin-auth";
 import AdminLogoutButton from "../_components/AdminLogoutButton";
 import DebateForm from "./_components/DebateForm";
 import DeleteDebateButton from "./_components/DeleteDebateButton";
@@ -23,6 +25,8 @@ const CAT_COLORS: Record<string, string> = {
 };
 
 export default async function AdminDebatesPage() {
+  if (!(await requireLiveAdmin())) redirect("/admin/login");
+
   const debates = await prisma.dailyDebate.findMany({
     orderBy: [{ debate_date: "desc" }, { created_at: "desc" }],
     take:    50,

@@ -46,21 +46,21 @@ export default function CountryDropdown({ countries, active, clearHref }: Props)
     <div className="relative inline-block" ref={ref}>
       <button
         onClick={() => setOpen((v) => !v)}
-        className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-lg border text-sm font-medium transition-all min-w-[200px]
+        className={`inline-flex items-center gap-2 h-8 px-3 rounded-full border text-[12.5px] font-medium transition-all min-w-[170px]
           ${selected
-            ? "bg-gradient-to-r from-[#3B82F6]/20 to-[#8B5CF6]/20 border-[#3B82F6]/40 text-white"
+            ? "bg-gradient-to-r from-[#3B82F6]/25 to-[#8B5CF6]/25 border-[#3B82F6]/40 text-white"
             : "bg-[#12121A] border-[#1E1E2E] text-[#A0A0B0] hover:border-white/20 hover:text-white"
           }`}
       >
         {selected ? (
           <>
-            <span className="text-base leading-none">{selected.flag}</span>
+            <span className="text-sm leading-none">{selected.flag}</span>
             <span className="flex-1 text-left">{selected.label}</span>
           </>
         ) : (
           <span className="flex-1 text-left">Select a country</span>
         )}
-        <ChevronDown size={16} className={`transition-transform ${open ? "rotate-180" : ""}`} />
+        <ChevronDown size={14} className={`transition-transform ${open ? "rotate-180" : ""}`} />
       </button>
 
       {selected && (

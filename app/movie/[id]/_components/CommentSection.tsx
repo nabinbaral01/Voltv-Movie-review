@@ -43,7 +43,7 @@ function labelFor(v: Verdict) {
   return VERDICTS.find((x) => x.id === v)!.label;
 }
 
-export default function CommentSection({ tmdbId, username: usernameProp }: { tmdbId: number; username?: string }) {
+export default function CommentSection({ tmdbId, username: usernameProp, kind = "movie", scope }: { tmdbId: number; username?: string; kind?: "movie" | "tv"; scope?: string }) {
   const { me } = useMe();
   const username  = me?.username  ?? usernameProp ?? "guest";
   const avatarUrl = me?.avatar_url ?? null;
@@ -57,11 +57,14 @@ export default function CommentSection({ tmdbId, username: usernameProp }: { tmd
 
   useEffect(() => {
     load();
-  }, [tmdbId]); // eslint-disable-line
+  }, [tmdbId, kind, scope]); // eslint-disable-line
 
   async function load() {
     setLoading(true);
-    const res  = await fetch(`/api/movie-comments?tmdb_id=${tmdbId}`);
+    const url = scope
+      ? `/api/movie-comments?scope=${encodeURIComponent(scope)}`
+      : `/api/movie-comments?tmdb_id=${tmdbId}&kind=${kind}`;
+    const res  = await fetch(url);
     const data = await res.json();
     setComments(data.comments ?? []);
     setLoading(false);
@@ -76,10 +79,13 @@ export default function CommentSection({ tmdbId, username: usernameProp }: { tmd
 
     setSubmitting(true);
 
+    const body = scope
+      ? { scope, username, verdict, text }
+      : { tmdb_id: tmdbId, kind, username, verdict, text };
     const res = await fetch("/api/movie-comments", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ tmdb_id: tmdbId, username, verdict, text }),
+      body: JSON.stringify(body),
     });
     setSubmitting(false);
 
@@ -91,7 +97,7 @@ export default function CommentSection({ tmdbId, username: usernameProp }: { tmd
     setText("");
     setVerdict(null);
     await load();
-    window.dispatchEvent(new CustomEvent("voltv-comments-updated", { detail: tmdbId }));
+    window.dispatchEvent(new CustomEvent("voltv-comments-updated", { detail: scope ?? tmdbId }));
   }
 
   const initial = (username[0] ?? "?").toUpperCase();

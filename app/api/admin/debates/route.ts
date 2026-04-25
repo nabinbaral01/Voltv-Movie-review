@@ -1,16 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { cookies } from "next/headers";
 import { prisma } from "@/lib/prisma";
-
-const ADMIN_TOKEN = process.env.ADMIN_COOKIE_SECRET!;
-
-async function gate() {
-  const jar = await cookies();
-  return jar.get("voltv_admin")?.value === ADMIN_TOKEN;
-}
+import { requireLiveAdmin } from "@/lib/admin-auth";
 
 export async function POST(req: NextRequest) {
-  if (!(await gate())) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  if (!(await requireLiveAdmin())) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
 
   const body = await req.json() as {
     question?:    string;

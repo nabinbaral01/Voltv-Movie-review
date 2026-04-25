@@ -1,18 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { requireLiveAdmin } from "@/lib/admin-auth";
 
-const ADMIN_TOKEN    = process.env.ADMIN_COOKIE_SECRET!;
-const MAIN_ADMIN     = process.env.ADMIN_USERNAME!;
-
-function requireAdmin(req: NextRequest) {
-  return req.cookies.get("voltv_admin")?.value === ADMIN_TOKEN;
-}
+const MAIN_ADMIN = process.env.ADMIN_USERNAME!;
 
 export async function POST(
   req:     NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  if (!requireAdmin(req)) {
+  if (!(await requireLiveAdmin())) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 

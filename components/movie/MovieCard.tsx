@@ -93,8 +93,13 @@ export default function MovieCard({
           </div>
         )}
 
-        {/* Quick actions — Watched (eye) + Watch Later (plus) */}
-        <PosterActions tmdbId={movie.tmdb_id} alwaysShowWatched />
+        {/* Quick actions — Watched (eye) + Watch Later (plus) + Fire */}
+        <PosterActions
+          tmdbId={movie.tmdb_id}
+          alwaysShowWatched
+          title={movie.title}
+          posterUrl={movie.poster_url}
+        />
       </div>
 
       {/* Info below poster */}

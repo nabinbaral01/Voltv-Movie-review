@@ -4,7 +4,9 @@ import Link from "next/link";
 import Topbar from "@/components/layout/Topbar";
 import Sidebar, { BottomNav } from "@/components/layout/Sidebar";
 import { MovieRow } from "@/components/movie/MovieCard";
-import { getMovieById, profileUrl, getTrending, extractTrailerKey } from "@/lib/tmdb";
+import { getMovieById, profileUrl, extractTrailerKey } from "@/lib/tmdb";
+import { readFireStore, topFires } from "@/lib/fires";
+import MostDiscussedSidebar from "@/components/discover/MostDiscussedSidebar";
 import { formatRuntime, extractYear } from "@/utils/formatters";
 import { readCommentsFor } from "@/lib/comments";
 import { getSessionUser } from "@/lib/auth";
@@ -13,6 +15,7 @@ import CommentSection from "./_components/CommentSection";
 import WatchActions from "./_components/WatchActions";
 import ScoreGauge from "./_components/ScoreGauge";
 import ScoreMeter from "./_components/ScoreMeter";
+import FireButton from "@/components/movie/FireButton";
 import StreamsOn from "./_components/StreamsOn";
 import TrailerHero from "./_components/TrailerHero";
 import PosterDownloadButton from "@/components/movie/PosterDownloadButton";
@@ -51,12 +54,8 @@ export default async function MoviePage({ params }: { params: Promise<{ id: stri
     runtime:      null,
   }));
 
-  // Most Discussed (trending movies for sidebar)
-  let trending: { id: number; title: string; poster_path: string | null }[] = [];
-  try {
-    const t = await getTrending("week");
-    trending = t.results.slice(0, 6);
-  } catch {}
+  // Most Discussed — fire-based leaderboard
+  const fires = topFires(await readFireStore(), 7);
 
   const providersUS = movie["watch/providers"]?.results?.US;
   const providers   = [
@@ -109,7 +108,7 @@ export default async function MoviePage({ params }: { params: Promise<{ id: stri
                   const voteAvg  = (movie as { vote_average?: number }).vote_average;
                   const voteCount = (movie as { vote_count?: number }).vote_count;
                   const rating = voteAvg && voteAvg > 0
-                    ? `⭐ ${voteAvg.toFixed(1)}${voteCount ? ` (${voteCount >= 1000 ? `${(voteCount/1000).toFixed(1)}K` : voteCount})` : ""}`
+                    ? `${voteAvg.toFixed(1)}${voteCount ? ` (${voteCount >= 1000 ? `${(voteCount/1000).toFixed(1)}K` : voteCount})` : ""}`
                     : "—";
 
                   return (
@@ -131,8 +130,15 @@ export default async function MoviePage({ params }: { params: Promise<{ id: stri
                             <h1 className="font-display text-3xl sm:text-5xl text-white leading-tight">
                               {movie.title}
                             </h1>
-                            <div className="pt-2">
+                            <div className="pt-2 flex items-center gap-2 flex-wrap">
                               <WatchActions tmdbId={tmdbId} />
+                              <FireButton
+                                tmdbId={tmdbId}
+                                kind="movie"
+                                title={movie.title}
+                                posterUrl={poster}
+                                variant="inline"
+                              />
                             </div>
                           </div>
                         </div>
@@ -263,38 +269,7 @@ export default async function MoviePage({ params }: { params: Promise<{ id: stri
                   </a>
                 </div>
 
-                {trending.length > 0 && (
-                  <div className="card p-4">
-                    <h3 className="text-sm font-semibold text-white mb-3">💬 Most Discussed</h3>
-                    <ol className="space-y-3">
-                      {trending.map((m, i) => (
-                        <li key={m.id}>
-                          <Link href={`/movie/${m.id}`} className="flex items-center gap-3 group">
-                            <span className="w-5 text-center text-sm font-extrabold text-[#505060] shrink-0">
-                              {i + 1}
-                            </span>
-                            <div className="relative w-9 h-12 rounded-md overflow-hidden bg-[#1A1A28] shrink-0">
-                              {m.poster_path && (
-                                <Image
-                                  src={`https://image.tmdb.org/t/p/w185${m.poster_path}`}
-                                  alt={m.title}
-                                  fill
-                                  sizes="36px"
-                                  className="object-cover"
-                                />
-                              )}
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <div className="text-xs font-semibold text-white truncate group-hover:text-[#E50914] transition-colors">
-                                {m.title}
-                              </div>
-                            </div>
-                          </Link>
-                        </li>
-                      ))}
-                    </ol>
-                  </div>
-                )}
+                <MostDiscussedSidebar initial={fires} />
               </aside>
             </div>
           </div>

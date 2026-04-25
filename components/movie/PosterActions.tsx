@@ -4,13 +4,20 @@ import { useState } from "react";
 import { Eye, Plus, Loader2 } from "lucide-react";
 import { toast } from "@/components/ui/Toast";
 import { useWatchStatus, setLocalWatchStatus } from "@/components/hooks/useWatchStatus";
+import FireButton from "./FireButton";
 
 interface Props {
   tmdbId: number;
   alwaysShowWatched?: boolean;
+  title?: string;
+  posterUrl?: string | null;
+  kind?: "movie" | "tv";
+  showFire?: boolean;
 }
 
-export default function PosterActions({ tmdbId, alwaysShowWatched }: Props) {
+export default function PosterActions({
+  tmdbId, alwaysShowWatched, title, posterUrl, kind = "movie", showFire = true,
+}: Props) {
   const status = useWatchStatus(tmdbId);
   const [busy, setBusy] = useState<"watched" | "want_to_watch" | null>(null);
 
@@ -82,6 +89,9 @@ export default function PosterActions({ tmdbId, alwaysShowWatched }: Props) {
           ? <Loader2 size={14} className="animate-spin" />
           : <Plus size={14} />}
       </IconButton>
+      {showFire && title && (
+        <FireButton tmdbId={tmdbId} kind={kind} title={title} posterUrl={posterUrl} />
+      )}
     </div>
   );
 }

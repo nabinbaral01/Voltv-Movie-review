@@ -129,6 +129,48 @@ export async function discoverMovies(params: DiscoverParams) {
   return tmdbFetch<TMDBSearchResult>("/discover/movie", p);
 }
 
+export async function getTVById(tmdbId: number) {
+  return tmdbFetch<TMDBTVDetail>(`/tv/${tmdbId}`, {
+    append_to_response: "videos,credits,similar,watch/providers,external_ids",
+  });
+}
+
+export interface TMDBSeasonDetail {
+  _id:           string;
+  id:            number;
+  name:          string;
+  overview:      string;
+  poster_path:   string | null;
+  air_date:      string | null;
+  season_number: number;
+  episodes:      TMDBEpisode[];
+}
+
+export interface TMDBEpisode {
+  id:              number;
+  name:            string;
+  overview:        string;
+  still_path:      string | null;
+  air_date:        string | null;
+  episode_number:  number;
+  season_number:   number;
+  runtime:         number | null;
+  vote_average:    number;
+  vote_count:      number;
+  crew?:           TMDBCrewMember[];
+  guest_stars?:    TMDBCastMember[];
+}
+
+export async function getTVSeason(tvId: number, seasonNumber: number) {
+  return tmdbFetch<TMDBSeasonDetail>(`/tv/${tvId}/season/${seasonNumber}`);
+}
+
+export async function getTVEpisode(tvId: number, seasonNumber: number, episodeNumber: number) {
+  return tmdbFetch<TMDBEpisode>(`/tv/${tvId}/season/${seasonNumber}/episode/${episodeNumber}`, {
+    append_to_response: "credits",
+  });
+}
+
 export async function discoverTV(params: DiscoverParams & { with_keywords?: string }) {
   const p: Record<string, string> = {
     include_adult: "false",
@@ -295,6 +337,45 @@ export interface TMDBMovieDetail extends TMDBMovieBasic {
       release_dates: { certification: string; release_date: string; type: number }[];
     }[];
   };
+}
+
+export interface TMDBTVDetail {
+  id:                    number;
+  name:                  string;
+  original_name:         string;
+  overview:              string;
+  poster_path:           string | null;
+  backdrop_path:         string | null;
+  first_air_date:        string;
+  last_air_date:         string | null;
+  number_of_seasons:     number;
+  number_of_episodes:    number;
+  episode_run_time:      number[];
+  in_production:         boolean;
+  status:                string;
+  tagline:               string | null;
+  vote_average:          number;
+  popularity:            number;
+  genres:                { id: number; name: string }[];
+  origin_country:        string[];
+  original_language:     string;
+  production_countries:  { iso_3166_1: string; name: string }[];
+  spoken_languages:      { iso_639_1: string; english_name: string }[];
+  networks:              { id: number; name: string; logo_path: string | null }[];
+  seasons: {
+    id:            number;
+    season_number: number;
+    name:          string;
+    overview:      string;
+    poster_path:   string | null;
+    air_date:      string | null;
+    episode_count: number;
+  }[];
+  videos:       { results: TMDBVideo[] };
+  credits:      { cast: TMDBCastMember[]; crew: TMDBCrewMember[] };
+  similar:      { results: { id: number; name: string; poster_path: string | null; first_air_date: string; vote_average?: number }[] };
+  "watch/providers": { results: Record<string, WatchProviders> };
+  external_ids: { imdb_id: string | null };
 }
 
 export interface TMDBSearchResult {

@@ -13,11 +13,12 @@ import {
   getUpcoming,
   getMarvelMovies,
   getDCMovies,
-  posterUrl,
 } from "@/lib/tmdb";
 import type { MovieCard as MovieCardType } from "@/types";
 import type { TMDBMovieBasic } from "@/lib/tmdb";
 import WeeklyLeaderboard from "./WeeklyLeaderboard";
+import MostDiscussedSidebar from "@/components/discover/MostDiscussedSidebar";
+import { readFireStore, topFires } from "@/lib/fires";
 import ForYouRow from "./ForYouRow";
 import PostComposer from "@/components/feed/PostComposer";
 import PostCard from "@/components/feed/PostCard";
@@ -67,7 +68,7 @@ export default async function FeedPage() {
   const crunchyroll   = toCards(popular2.results);
   const marvelRow     = toCards(marvel.results);
   const dcRow         = toCards(dc.results);
-  const mostDiscussed = trending.results.slice(0, 10) as TMDBMovieBasic[];
+  const fires = topFires(await readFireStore(), 10);
 
   return (
     <div className="min-h-screen bg-[#0A0A0F]">
@@ -82,31 +83,31 @@ export default async function FeedPage() {
             <ForYouRow />
           </Suspense>
           {talkOfTown.length > 0 && (
-            <MovieRow title="🎬 Talk Of The Town" movies={talkOfTown} size="md" viewAllHref="/discover?sort=trending" />
+            <MovieRow title="Talk of the Town" movies={talkOfTown} size="md" viewAllHref="/discover?sort=trending" />
           )}
           {withFriends.length > 0 && (
-            <MovieRow title="👥 Watch It With Friends" movies={withFriends} size="md" viewAllHref="/discover?sort=popular" />
+            <MovieRow title="Watch it with Friends" movies={withFriends} size="md" viewAllHref="/discover?sort=popular" />
           )}
           {marvelRow.length > 0 && (
-            <MovieRow title="🦸 Marvel Universe" movies={marvelRow} size="md" viewAllHref="/discover?studio=marvel" />
+            <MovieRow title="Marvel Universe" movies={marvelRow} size="md" viewAllHref="/discover?studio=marvel" />
           )}
           {dcRow.length > 0 && (
-            <MovieRow title="🦇 DC Universe" movies={dcRow} size="md" viewAllHref="/discover?studio=dc" />
+            <MovieRow title="DC Universe" movies={dcRow} size="md" viewAllHref="/discover?studio=dc" />
           )}
           {editorsPick.length > 0 && (
-            <MovieRow title="❤️ Editor's Pick Of The Week" movies={editorsPick} size="md" viewAllHref="/discover?sort=top_rated" />
+            <MovieRow title="Editor's Pick of the Week" movies={editorsPick} size="md" viewAllHref="/discover?sort=top_rated" />
           )}
           {netflix.length > 0 && (
-            <MovieRow title="🍿 Don't Miss These on Netflix" movies={netflix} size="md" viewAllHref="/discover?filter=now_playing" />
+            <MovieRow title="Don't Miss These on Netflix" movies={netflix} size="md" viewAllHref="/discover?filter=now_playing" />
           )}
           {amazon.length > 0 && (
-            <MovieRow title="📦 Don't Miss These on Amazon" movies={amazon} size="md" viewAllHref="/discover?filter=upcoming" />
+            <MovieRow title="Don't Miss These on Amazon" movies={amazon} size="md" viewAllHref="/discover?filter=upcoming" />
           )}
           {prime.length > 0 && (
-            <MovieRow title="⭐ Worth Watching on Prime" movies={prime} size="md" viewAllHref="/discover?sort=trending" />
+            <MovieRow title="Worth Watching on Prime" movies={prime} size="md" viewAllHref="/discover?sort=trending" />
           )}
           {crunchyroll.length > 0 && (
-            <MovieRow title="🌸 Worth Watching on Crunchyroll" movies={crunchyroll} size="md" viewAllHref="/discover?sort=popular" />
+            <MovieRow title="Worth Watching on Crunchyroll" movies={crunchyroll} size="md" viewAllHref="/discover?sort=popular" />
           )}
 
           {/* ── Community feed (X-style) streams in ─────── */}
@@ -117,7 +118,7 @@ export default async function FeedPage() {
 
         <aside className="hidden xl:block w-[320px] shrink-0 pt-6 pr-4 space-y-4">
           <PromoBanner />
-          <MostDiscussed movies={mostDiscussed} />
+          <MostDiscussedSidebar initial={fires} />
           <Suspense fallback={<Skeleton className="w-full h-64 rounded-2xl" />}>
             <WeeklyLeaderboard />
           </Suspense>
@@ -147,52 +148,6 @@ function PromoBanner() {
   );
 }
 
-function MostDiscussed({ movies }: { movies: TMDBMovieBasic[] }) {
-  if (movies.length === 0) return null;
-  return (
-    <div className="card p-4 space-y-3">
-      <div className="flex items-center justify-between">
-        <h3 className="font-bold text-white">💬 Most Discussed</h3>
-        <Link href="/discover?sort=trending" className="text-xs text-[#E50914] hover:underline">
-          See all →
-        </Link>
-      </div>
-      <ol className="space-y-3">
-        {movies.map((m, i) => (
-          <li key={m.id}>
-            <Link
-              href={`/movie/${m.id}`}
-              className="flex items-center gap-3 group"
-            >
-              <span className="w-6 text-center text-lg font-extrabold text-[#505060] shrink-0">
-                {i + 1}
-              </span>
-              <div className="relative w-10 h-14 rounded-md overflow-hidden bg-[#1A1A28] shrink-0">
-                {m.poster_path && (
-                  <Image
-                    src={posterUrl(m.poster_path, "w185")}
-                    alt={m.title}
-                    fill
-                    sizes="40px"
-                    className="object-cover"
-                  />
-                )}
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="text-sm font-semibold text-white truncate group-hover:text-[#E50914] transition-colors">
-                  {m.title}
-                </div>
-                <div className="text-xs text-[#505060]">
-                  ⚡ {m.vote_average?.toFixed(1) ?? "—"} · {m.release_date?.slice(0, 4) ?? ""}
-                </div>
-              </div>
-            </Link>
-          </li>
-        ))}
-      </ol>
-    </div>
-  );
-}
 
 async function CommunityFeed() {
   const supabase = await createServerSupabaseClient();

@@ -202,12 +202,12 @@ export default async function ProfilePage(
     prisma.watchHistory.findMany({
       where:   { user_id: user.id, status: "watched" },
       orderBy: { watched_date: "desc" },
-      include: { movie: { select: { id: true, tmdb_id: true, title: true, poster_url: true, release_date: true } } },
+      include: { movie: { select: { id: true, tmdb_id: true, title: true, poster_url: true, release_date: true, languages: true, genres: true } } },
     }),
     prisma.watchHistory.findMany({
       where:   { user_id: user.id, status: "want_to_watch" },
       orderBy: { updated_at: "desc" },
-      include: { movie: { select: { id: true, tmdb_id: true, title: true, poster_url: true, release_date: true } } },
+      include: { movie: { select: { id: true, tmdb_id: true, title: true, poster_url: true, release_date: true, languages: true, genres: true } } },
     }),
   ]);
 
@@ -286,7 +286,7 @@ export default async function ProfilePage(
                 { label: "Movies",    value: formatCount(user._count.watch_history) },
                 { label: "Hours",     value: formatCount(Math.round(totalMinutes / 60)) },
                 { label: "Countries", value: String(countries) },
-                { label: "Streak 🔥", value: String(user.streak_count) },
+                { label: "Streak", value: String(user.streak_count) },
               ].map((s) => (
                 <div key={s.label} className="card p-3 text-center">
                   <div className="text-lg font-bold font-mono text-white">{s.value}</div>
@@ -316,7 +316,7 @@ export default async function ProfilePage(
             {favourites.length > 0 && (
               <div className="mb-6">
                 <h2 className="text-sm font-semibold text-[#A0A0B0] uppercase tracking-wide mb-3">
-                  🏆 Favourite Films
+                  Favourite Films
                 </h2>
                 <div className="flex gap-3">
                   {favourites.map((fav, i) => (
@@ -335,12 +335,19 @@ export default async function ProfilePage(
                             sizes="80px"
                           />
                         ) : (
-                          <div className="w-full h-full flex items-center justify-center">🎬</div>
+                          <div className="w-full h-full bg-[#2A2A3A] flex items-center justify-center">
+                            <svg viewBox="0 0 100 100" className="w-1/2 h-1/2 text-[#3A3A4A]">
+                              <circle cx="50" cy="38" r="18" fill="currentColor" />
+                              <ellipse cx="50" cy="80" rx="30" ry="22" fill="currentColor" />
+                            </svg>
+                          </div>
                         )}
                       </div>
                       {i === 0 && (
-                        <div className="absolute -top-2 -right-2 w-6 h-6 bg-[#F5A623] rounded-full flex items-center justify-center text-xs">
-                          👑
+                        <div className="absolute -top-2 -right-2 w-6 h-6 bg-[#F5A623] rounded-full flex items-center justify-center">
+                          <svg viewBox="0 0 24 24" fill="none" className="w-3.5 h-3.5 text-black" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M2 4l3 12h14l3-12-6 7-4-7-4 7-6-7zm3 16h14" />
+                          </svg>
                         </div>
                       )}
                     </Link>
@@ -465,7 +472,12 @@ function MovieStrip({
                     className="object-cover w-full h-full group-hover:scale-105 transition-transform"
                   />
                 ) : (
-                  <div className="w-full h-full flex items-center justify-center text-xl">🎬</div>
+                  <div className="w-full h-full bg-[#2A2A3A] flex items-center justify-center">
+                    <svg viewBox="0 0 100 100" className="w-1/2 h-1/2 text-[#3A3A4A]">
+                      <circle cx="50" cy="38" r="18" fill="currentColor" />
+                      <ellipse cx="50" cy="80" rx="30" ry="22" fill="currentColor" />
+                    </svg>
+                  </div>
                 )}
               </div>
               <p className="mt-1.5 text-xs text-white leading-tight line-clamp-2 group-hover:text-[#E50914] transition-colors">

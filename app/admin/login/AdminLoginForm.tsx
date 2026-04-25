@@ -44,7 +44,7 @@ export default function AdminLoginForm() {
           <Shield size={26} className="text-white" />
         </div>
         <h1 className="text-xl font-bold text-white">Admin Access</h1>
-        <p className="text-xs text-[#505060] mt-1">Restricted area • Authorized staff only</p>
+        <p className="text-xs text-[#505060] mt-1">Main admin or granted staff account</p>
       </div>
 
       {/* Username */}

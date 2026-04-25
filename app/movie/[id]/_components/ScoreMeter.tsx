@@ -6,6 +6,8 @@ import { statsFor, type MovieComment } from "@/lib/comment-stats";
 interface ScoreMeterProps {
   tmdbId: number;
   initialComments: MovieComment[];
+  kind?: "movie" | "tv";
+  scope?: string;
 }
 
 const SEGMENTS = [
@@ -15,22 +17,25 @@ const SEGMENTS = [
   { key: "masterpiece", color: "#22C55E", label: "Perfection" },
 ] as const;
 
-export default function ScoreMeter({ tmdbId, initialComments }: ScoreMeterProps) {
+export default function ScoreMeter({ tmdbId, initialComments, kind = "movie", scope }: ScoreMeterProps) {
   const [comments, setComments] = useState(initialComments);
   const { score_pct, count, buckets } = statsFor(comments);
 
   useEffect(() => {
+    const url = scope
+      ? `/api/movie-comments?scope=${encodeURIComponent(scope)}`
+      : `/api/movie-comments?tmdb_id=${tmdbId}&kind=${kind}`;
     const handler = (e: Event) => {
-      const detail = (e as CustomEvent<number>).detail;
-      if (detail !== tmdbId) return;
-      fetch(`/api/movie-comments?tmdb_id=${tmdbId}`)
+      const detail = (e as CustomEvent<string | number>).detail;
+      if (detail !== (scope ?? tmdbId)) return;
+      fetch(url)
         .then((r) => r.json())
         .then((d) => setComments(d.comments ?? []))
         .catch(() => {});
     };
     window.addEventListener("voltv-comments-updated", handler);
     return () => window.removeEventListener("voltv-comments-updated", handler);
-  }, [tmdbId]);
+  }, [tmdbId, kind, scope]);
 
   const size = 320;
   const r    = 130;

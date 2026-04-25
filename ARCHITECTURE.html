@@ -1,0 +1,223 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>VOLTV — Architecture</title>
+<style>
+  @page { size: A4; margin: 18mm 15mm; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font: 10.5pt/1.55 -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    color: #1f2937;
+  }
+  h1 { font-size: 22pt; margin: 0 0 6pt; color: #0f172a; letter-spacing: -0.3pt; }
+  h2 { font-size: 15pt; margin: 18pt 0 6pt; color: #0f172a; border-bottom: 1px solid #e5e7eb; padding-bottom: 4pt; }
+  h3 { font-size: 12pt; margin: 14pt 0 4pt; color: #334155; }
+  h4 { font-size: 11pt; margin: 10pt 0 3pt; color: #475569; }
+  p  { margin: 4pt 0; }
+  hr { border: 0; border-top: 1px solid #e5e7eb; margin: 14pt 0; }
+  a  { color: #2563eb; text-decoration: none; }
+  strong { color: #0f172a; }
+  code {
+    font-family: ui-monospace, "Cascadia Mono", Consolas, Menlo, monospace;
+    font-size: 9.2pt;
+    background: #f1f5f9;
+    padding: 1.5pt 4pt;
+    border-radius: 3pt;
+    color: #0f172a;
+  }
+  pre {
+    background: #0f172a;
+    color: #e2e8f0;
+    padding: 10pt 12pt;
+    border-radius: 6pt;
+    overflow-x: auto;
+    page-break-inside: avoid;
+  }
+  pre code { background: transparent; color: inherit; padding: 0; font-size: 9pt; }
+  ul, ol { margin: 4pt 0 6pt 16pt; }
+  li { margin: 2pt 0; }
+  table {
+    border-collapse: collapse;
+    width: 100%;
+    margin: 8pt 0;
+    font-size: 9.2pt;
+    page-break-inside: auto;
+  }
+  thead { display: table-header-group; }
+  tr    { page-break-inside: avoid; }
+  th, td {
+    border: 0.5pt solid #cbd5e1;
+    padding: 4pt 6pt;
+    text-align: left;
+    vertical-align: top;
+  }
+  th { background: #f1f5f9; font-weight: 600; color: #0f172a; }
+  tbody tr:nth-child(odd) { background: #fafafa; }
+</style></head><body>
+<h1>VOLTV — Architecture Document</h1>
+<p>One document covering the full stack: languages, frameworks, every API endpoint, and which file on the frontend calls it.</p>
+<hr/>
+<h2>1. Stack at a glance</h2>
+<table><thead><tr><th>Layer</th><th>Technology</th></tr></thead><tbody><tr><td>Language (everywhere)</td><td><strong>TypeScript 5</strong></td></tr><tr><td>Frontend UI</td><td><strong>React 19.2</strong> + <strong>Next.js 16.2</strong> App Router</td></tr><tr><td>Frontend bundler</td><td><strong>Turbopack</strong> (<code>next dev --turbo</code>)</td></tr><tr><td>Styling</td><td><strong>Tailwind CSS v4</strong> + Radix UI primitives</td></tr><tr><td>Icons / charts</td><td>Lucide-React, Recharts, Framer Motion</td></tr><tr><td>Forms &amp; validation</td><td>React Hook Form + Zod</td></tr><tr><td>Client state</td><td>Zustand, TanStack Query</td></tr><tr><td>Backend runtime</td><td>Next.js <strong>Route Handlers</strong> (Node.js)</td></tr><tr><td>ORM</td><td><strong>Prisma 7.7</strong> (<code>@prisma/adapter-pg</code>)</td></tr><tr><td>Database</td><td><strong>Neon Postgres</strong> (serverless)</td></tr><tr><td>Cache / rate limit</td><td><strong>Redis</strong> via <code>ioredis</code></td></tr><tr><td>Auth</td><td><strong>Supabase Auth</strong> (SSR) + custom admin cookie</td></tr><tr><td>External data</td><td><strong>TMDB v3</strong> (<code>lib/tmdb.ts</code>)</td></tr><tr><td>Edge middleware</td><td><code>proxy.ts</code> (auth gate + admin gate)</td></tr><tr><td>Deployment tunnel</td><td>Cloudflare Quick Tunnels (dev only)</td></tr></tbody></table>
+<p>There is <strong>one language (TypeScript)</strong> front and back. The "frontend" is React Server + Client Components in <code>app/</code>. The "backend" is Route Handlers also in <code>app/api/</code>. They share <code>lib/</code>, <code>utils/</code>, <code>types/</code>.</p>
+<hr/>
+<h2>2. Frontend</h2>
+<h3>Rendering model</h3>
+<ul>
+<li><strong>Server Components</strong> (default) — pages like <code>app/recommendations/page.tsx</code>, <code>app/profile/[username]/page.tsx</code>, <code>app/admin/page.tsx</code> read directly from Prisma at request time. No <code>fetch</code> required.</li>
+<li><strong>Client Components</strong> (<code>"use client"</code>) — interactive pieces (modals, composers, toggles) that run in the browser and hit the Route Handlers over HTTP via <code>fetch</code>.</li>
+</ul>
+<h3>Key frontend directories</h3>
+<table><thead><tr><th>Path</th><th>Purpose</th></tr></thead><tbody><tr><td><code>app/</code></td><td>Pages &amp; route handlers (App Router)</td></tr><tr><td><code>app/_components/</code></td><td>Shared client components used across pages</td></tr><tr><td><code>app/movie/[id]/_components/</code></td><td>Movie-detail UI (rating modal, discussion tabs)</td></tr><tr><td><code>app/admin/_components/</code></td><td>Admin panel widgets (moderation, charts, debates)</td></tr><tr><td><code>components/feed/</code></td><td>Social feed cards, composer, reply modal</td></tr><tr><td><code>components/compose/</code></td><td>Full-screen post composer overlay</td></tr><tr><td><code>components/movie/</code></td><td>Rating modal, VOLTV meter, poster download</td></tr><tr><td><code>components/profile/</code></td><td>Follow button, edit profile, zoomable grids</td></tr><tr><td><code>components/collections/</code></td><td>Collection list, movie picker, edit/delete</td></tr><tr><td><code>components/auth/</code></td><td>Login modal</td></tr><tr><td><code>components/layout/</code></td><td>Topbar, Sidebar</td></tr><tr><td><code>components/ui/</code></td><td>Primitives (VerifiedBadge, etc.)</td></tr><tr><td><code>hooks/</code></td><td><code>useAuth</code>, <code>useMovie</code>, <code>useStreak</code></td></tr></tbody></table>
+<h3>Design system</h3>
+<p>Tailwind utility classes, <code>clsx</code> + <code>tailwind-merge</code> for conditional styles, Radix UI for accessible dialogs/dropdowns/tooltips, Sonner for toasts, Framer Motion for transitions, Recharts for admin analytics.</p>
+<hr/>
+<h2>3. Backend</h2>
+<p>Every file under <code>app/api/**/route.ts</code> is a backend endpoint. They export one or more of <code>GET</code>, <code>POST</code>, <code>PATCH</code>, <code>DELETE</code> functions. All use the same pattern:</p>
+<ol>
+<li><code>createServerSupabaseClient()</code> → verify the user's session cookie.</li>
+<li>(Optional) Redis <code>rateLimit()</code> — e.g. ratings are 10/hour, votes are 5/min.</li>
+<li>Zod <code>safeParse()</code> on the request body.</li>
+<li>Prisma query against Neon Postgres.</li>
+<li>Optional side-effects (awardXP, updateStreak, invalidate caches, activity feed).</li>
+<li><code>NextResponse.json(...)</code>.</li>
+</ol>
+<h3>Backend-only modules (<code>lib/</code>)</h3>
+<table><thead><tr><th>Module</th><th>What it does</th></tr></thead><tbody><tr><td><code>lib/prisma.ts</code></td><td>Prisma client (singleton)</td></tr><tr><td><code>lib/supabase-server.ts</code></td><td>Supabase SSR client — reads auth cookie</td></tr><tr><td><code>lib/tmdb.ts</code></td><td>TMDB fetcher + trailer extractor</td></tr><tr><td><code>lib/xp-system.ts</code></td><td><code>awardXP(userId, action)</code> + level thresholds</td></tr><tr><td><code>lib/heatmap.ts</code></td><td>Streak + watch-history heatmap generator</td></tr><tr><td><code>lib/badge-engine.ts</code></td><td>Evaluates and awards badges</td></tr><tr><td><code>lib/recommendation-engine.ts</code></td><td>5-layer hybrid recommender (main algorithm)</td></tr><tr><td><code>lib/prediction-model.ts</code></td><td>Rating prediction helper</td></tr><tr><td><code>lib/comment-stats.ts</code></td><td>Aggregated sentiment over movie comments</td></tr><tr><td><code>lib/redis.ts</code></td><td><code>rateLimit</code>, <code>deleteCache</code>, <code>CacheKeys</code> helpers</td></tr><tr><td><code>utils/voltv-score.ts</code></td><td>5-dimension weighted score + <code>updateMovieScores()</code></td></tr></tbody></table>
+<h3>Auth / admin gating (<code>proxy.ts</code>)</h3>
+<p>Runs on every request. Three outcomes:</p>
+<ul>
+<li><code>/admin/*</code> → requires <code>voltv_admin</code> cookie matching <code>ADMIN_COOKIE_SECRET</code>, else redirect <code>/admin/login</code>.</li>
+<li><code>/api/poster</code>, <code>/admin/login</code>, <code>/api/admin/auth</code> → always pass through.</li>
+<li>Everything else → requires Supabase session (otherwise redirect <code>/login</code>).</li>
+</ul>
+<hr/>
+<h2>4. Data layer</h2>
+<h3>Neon Postgres (via Prisma 7)</h3>
+<p>Schema lives at <code>prisma/schema.prisma</code>. Key models:</p>
+<ul>
+<li><code>User</code> — supabase_id, xp, level, phone_verified, is_admin, is_banned, is_pro</li>
+<li><code>Movie</code> — tmdb_id (unique), genres[], voltv_score, tmdb_rating, trailer_url</li>
+<li><code>Rating</code> — 5 dimensions (story/direction/acting/visuals/rewatch), overall_score, weight_applied, verdict — unique <code>(user_id, movie_id)</code></li>
+<li><code>Review</code> (used as "post") — content, media_urls, visibility, like_count, reply_count</li>
+<li><code>Bookmark</code>, <code>ReviewLike</code>, <code>ReviewReply</code>, <code>Follow</code></li>
+<li><code>WatchHistory</code> — status enum, rewatch_count — unique <code>(user_id, movie_id)</code></li>
+<li><code>Collection</code>, <code>CollectionMovie</code></li>
+<li><code>DailyDebate</code> — movie_a/movie_b, votes_a/b, expires_at, <strong>unique <code>(debate_date, category)</code></strong></li>
+<li><code>DebateVote</code> — unique <code>(user_id, debate_id)</code></li>
+<li><code>Notification</code>, <code>ActivityFeed</code>, <code>Prediction</code>, <code>Badge</code>, <code>Report</code>, <code>UserSimilarity</code></li>
+</ul>
+<h3>Redis (ioredis)</h3>
+<p>Used for:</p>
+<ul>
+<li>Rate limiting (<code>rateLimit(userId, action, limit, windowSec)</code>)</li>
+<li>Caching hot reads (<code>CacheKeys.dailyDebate()</code>, <code>CacheKeys.heatmap(userId)</code>, <code>CacheKeys.movieTmdb(id)</code>)</li>
+</ul>
+<hr/>
+<h2>5. External services</h2>
+<table><thead><tr><th>Service</th><th>Used via</th><th>Purpose</th></tr></thead><tbody><tr><td>TMDB v3</td><td><code>lib/tmdb.ts</code></td><td>Movie metadata, trailers, search</td></tr><tr><td>Supabase</td><td><code>lib/supabase-server.ts</code></td><td>Auth (email/password + OAuth callbacks)</td></tr><tr><td>Neon</td><td><code>DATABASE_URL</code> / <code>DIRECT_URL</code></td><td>Primary Postgres</td></tr><tr><td>Redis</td><td><code>lib/redis.ts</code></td><td>Cache + rate limit</td></tr><tr><td>Cloudflare</td><td><code>cloudflared</code> binary</td><td>Public URL for the dev server</td></tr></tbody></table>
+<hr/>
+<h2>6. API endpoint reference</h2>
+<p><strong>Totals: 44 route files, 58 HTTP endpoints.</strong></p>
+<p>Each row lists: method, path, the route file, the frontend caller(s). Server Components that read data via Prisma directly (not via HTTP) are <strong>not</strong> listed as callers — they are noted where relevant.</p>
+<h3>6.1 Auth (5 endpoints)</h3>
+<table><thead><tr><th>Method</th><th>Path</th><th>Handler file</th><th>Frontend caller(s)</th></tr></thead><tbody><tr><td>GET</td><td><code>/api/auth/callback</code></td><td><code>app/api/auth/callback/route.ts</code></td><td>Supabase OAuth redirect (no JS caller)</td></tr><tr><td>GET</td><td><code>/api/auth/me</code></td><td><code>app/api/auth/me/route.ts</code></td><td>(server-side only)</td></tr><tr><td>POST</td><td><code>/api/auth/simple-login</code></td><td><code>app/api/auth/simple-login/route.ts</code></td><td><code>app/login/LoginForm.tsx:37</code>, <code>components/auth/LoginModal.tsx:38</code></td></tr><tr><td>DELETE</td><td><code>/api/auth/simple-login</code></td><td>same</td><td><code>components/layout/Topbar.tsx:113</code></td></tr><tr><td>POST</td><td><code>/api/auth/signout</code></td><td><code>app/api/auth/signout/route.ts</code></td><td><code>components/layout/Topbar.tsx:112</code>, <code>app/settings/page.tsx:53</code></td></tr></tbody></table>
+<h3>6.2 User &amp; profile (10 endpoints)</h3>
+<table><thead><tr><th>Method</th><th>Path</th><th>Handler file</th><th>Frontend caller(s)</th></tr></thead><tbody><tr><td>GET</td><td><code>/api/user/me</code></td><td><code>app/api/user/me/route.ts</code></td><td><code>components/hooks/useMe.ts:25</code></td></tr><tr><td>PATCH</td><td><code>/api/user/profile</code></td><td><code>app/api/user/profile/route.ts</code></td><td><code>components/profile/EditProfileModal.tsx:68</code></td></tr><tr><td>POST</td><td><code>/api/user/upload</code></td><td><code>app/api/user/upload/route.ts</code></td><td><code>components/profile/EditProfileModal.tsx:48</code>, <code>components/feed/PostComposer.tsx:74</code>, <code>components/compose/ComposeOverlay.tsx:96</code>, <code>app/compose/ComposeModal.tsx:87</code></td></tr><tr><td>GET</td><td><code>/api/user/stats</code></td><td><code>app/api/user/stats/route.ts</code></td><td>(server-side in profile page)</td></tr><tr><td>GET</td><td><code>/api/user/heatmap</code></td><td><code>app/api/user/heatmap/route.ts</code></td><td>(server-side in profile page)</td></tr><tr><td>GET</td><td><code>/api/user/follow</code></td><td><code>app/api/user/follow/route.ts</code></td><td>(server-side)</td></tr><tr><td>POST</td><td><code>/api/user/follow</code></td><td>same</td><td><code>components/profile/FollowButton.tsx:25</code></td></tr><tr><td>GET</td><td><code>/api/user/compatibility</code></td><td><code>app/api/user/compatibility/route.ts</code></td><td>(server-side in profile page)</td></tr><tr><td>GET</td><td><code>/api/users/search</code></td><td><code>app/api/users/search/route.ts</code></td><td><code>app/search/page.tsx:92</code></td></tr><tr><td>GET</td><td><code>/api/streak/check</code></td><td><code>app/api/streak/check/route.ts</code></td><td><code>hooks/useStreak.ts:16</code></td></tr></tbody></table>
+<h3>6.3 Movies &amp; ratings (6 endpoints)</h3>
+<table><thead><tr><th>Method</th><th>Path</th><th>Handler file</th><th>Frontend caller(s)</th></tr></thead><tbody><tr><td>GET</td><td><code>/api/movies/[id]</code></td><td><code>app/api/movies/[id]/route.ts</code></td><td><code>components/collections/AddMovieButton.tsx:60</code>, <code>app/collections/new/page.tsx:74</code>, <code>components/feed/PostComposer.tsx:96</code>, <code>components/compose/ComposeOverlay.tsx:117</code>, <code>app/compose/ComposeModal.tsx:108</code></td></tr><tr><td>GET</td><td><code>/api/movies/search</code></td><td><code>app/api/movies/search/route.ts</code></td><td><code>app/search/page.tsx:100</code>, <code>components/collections/AddMovieButton.tsx:40</code>, <code>app/collections/new/page.tsx:36</code>, <code>components/feed/PostComposer.tsx:53</code>, <code>components/compose/ComposeOverlay.tsx:68</code>, <code>app/compose/ComposeModal.tsx:59</code></td></tr><tr><td>GET</td><td><code>/api/movies/trending</code></td><td><code>app/api/movies/trending/route.ts</code></td><td>(server-side in feed/discover)</td></tr><tr><td>GET</td><td><code>/api/ratings</code></td><td><code>app/api/ratings/route.ts</code></td><td><code>hooks/useMovie.ts:21</code></td></tr><tr><td>POST</td><td><code>/api/ratings</code></td><td>same</td><td><code>app/movie/[id]/_components/MovieActions.tsx:22</code></td></tr><tr><td>GET</td><td><code>/api/movie-comments</code></td><td><code>app/api/movie-comments/route.ts</code></td><td><code>app/movie/[id]/_components/CommentSection.tsx:64</code>, <code>app/movie/[id]/_components/ScoreMeter.tsx:26</code>, <code>app/movie/[id]/_components/ScoreGauge.tsx:18</code></td></tr><tr><td>POST</td><td><code>/api/movie-comments</code></td><td>same</td><td><code>app/movie/[id]/_components/CommentSection.tsx:79</code></td></tr></tbody></table>
+<h3>6.4 Watchlist (6 endpoints)</h3>
+<table><thead><tr><th>Method</th><th>Path</th><th>Handler file</th><th>Frontend caller(s)</th></tr></thead><tbody><tr><td>GET</td><td><code>/api/watchlist</code></td><td><code>app/api/watchlist/route.ts</code></td><td><code>hooks/useMovie.ts:22</code></td></tr><tr><td>POST</td><td><code>/api/watchlist</code></td><td>same</td><td><code>app/movie/[id]/_components/MovieActions.tsx:39</code></td></tr><tr><td>DELETE</td><td><code>/api/watchlist</code></td><td>same</td><td>(client-side)</td></tr><tr><td>GET</td><td><code>/api/watchlist/quick</code></td><td><code>app/api/watchlist/quick/route.ts</code></td><td><code>app/movie/[id]/_components/WatchActions.tsx:14</code></td></tr><tr><td>POST</td><td><code>/api/watchlist/quick</code></td><td>same</td><td><code>app/movie/[id]/_components/WatchActions.tsx:26</code>, <code>components/movie/PosterActions.tsx:28</code></td></tr><tr><td>GET</td><td><code>/api/watchlist/all</code></td><td><code>app/api/watchlist/all/route.ts</code></td><td><code>components/hooks/useWatchStatus.ts:24</code></td></tr></tbody></table>
+<h3>6.5 Reviews / posts (7 endpoints)</h3>
+<table><thead><tr><th>Method</th><th>Path</th><th>Handler file</th><th>Frontend caller(s)</th></tr></thead><tbody><tr><td>GET</td><td><code>/api/reviews</code></td><td><code>app/api/reviews/route.ts</code></td><td><code>app/movie/[id]/_components/DiscussionTabs.tsx:35</code></td></tr><tr><td>POST</td><td><code>/api/reviews</code></td><td>same</td><td><code>app/compose/ComposeModal.tsx:113</code>, <code>components/feed/PostComposer.tsx:102</code>, <code>components/compose/ComposeOverlay.tsx:122</code>, <code>app/movie/[id]/_components/DiscussionTabs.tsx:52</code>, <code>components/feed/ReplyModal.tsx:39</code></td></tr><tr><td>PATCH</td><td><code>/api/reviews/[id]</code></td><td><code>app/api/reviews/[id]/route.ts</code></td><td><code>components/feed/PostCard.tsx:148</code></td></tr><tr><td>DELETE</td><td><code>/api/reviews/[id]</code></td><td>same</td><td><code>components/feed/PostCard.tsx:177</code></td></tr><tr><td>POST</td><td><code>/api/reviews/[id]/like</code></td><td><code>app/api/reviews/[id]/like/route.ts</code></td><td><code>components/feed/PostCard.tsx:130</code>, <code>app/movie/[id]/_components/DiscussionTabs.tsx:192</code></td></tr><tr><td>POST</td><td><code>/api/reviews/[id]/bookmark</code></td><td><code>app/api/reviews/[id]/bookmark/route.ts</code></td><td><code>components/feed/PostCard.tsx:163</code></td></tr><tr><td>POST</td><td><code>/api/reviews/[id]/repost</code></td><td><code>app/api/reviews/[id]/repost/route.ts</code></td><td>(client-side on PostCard)</td></tr><tr><td>POST</td><td><code>/api/reviews/[id]/report</code></td><td><code>app/api/reviews/[id]/report/route.ts</code></td><td>(client-side on PostCard menu)</td></tr></tbody></table>
+<h3>6.6 Collections (6 endpoints)</h3>
+<table><thead><tr><th>Method</th><th>Path</th><th>Handler file</th><th>Frontend caller(s)</th></tr></thead><tbody><tr><td>GET</td><td><code>/api/collections</code></td><td><code>app/api/collections/route.ts</code></td><td>(server-side)</td></tr><tr><td>POST</td><td><code>/api/collections</code></td><td>same</td><td><code>app/collections/new/page.tsx:61</code></td></tr><tr><td>PATCH</td><td><code>/api/collections/[id]</code></td><td><code>app/api/collections/[id]/route.ts</code></td><td><code>components/collections/EditCollectionButton.tsx:36</code></td></tr><tr><td>DELETE</td><td><code>/api/collections/[id]</code></td><td>same</td><td><code>components/collections/EditCollectionButton.tsx:61</code></td></tr><tr><td>POST</td><td><code>/api/collections/[id]/movies</code></td><td><code>app/api/collections/[id]/movies/route.ts</code></td><td><code>app/collections/new/page.tsx:75</code>, <code>components/collections/AddMovieButton.tsx:62</code></td></tr><tr><td>DELETE</td><td><code>/api/collections/[id]/movies</code></td><td>same</td><td>(client-side)</td></tr></tbody></table>
+<h3>6.7 Debates (1 endpoint)</h3>
+<table><thead><tr><th>Method</th><th>Path</th><th>Handler file</th><th>Frontend caller(s)</th></tr></thead><tbody><tr><td>POST</td><td><code>/api/debates/vote</code></td><td><code>app/api/debates/vote/route.ts</code></td><td><code>app/_components/DebateClientWrapper.tsx:8</code></td></tr></tbody></table>
+<h3>6.8 Recommendations &amp; predictions (3 endpoints)</h3>
+<table><thead><tr><th>Method</th><th>Path</th><th>Handler file</th><th>Frontend caller(s)</th></tr></thead><tbody><tr><td>GET</td><td><code>/api/recommendations</code></td><td><code>app/api/recommendations/route.ts</code></td><td>(server-side in <code>/recommendations</code> page)</td></tr><tr><td>POST</td><td><code>/api/recommendations/similarity</code></td><td><code>app/api/recommendations/similarity/route.ts</code></td><td>(internal trigger)</td></tr><tr><td>GET</td><td><code>/api/predictions</code></td><td><code>app/api/predictions/route.ts</code></td><td>(server-side)</td></tr><tr><td>POST</td><td><code>/api/predictions</code></td><td>same</td><td>(client-side on prediction UI)</td></tr></tbody></table>
+<h3>6.9 Notifications (2 endpoints)</h3>
+<table><thead><tr><th>Method</th><th>Path</th><th>Handler file</th><th>Frontend caller(s)</th></tr></thead><tbody><tr><td>GET</td><td><code>/api/notifications</code></td><td><code>app/api/notifications/route.ts</code></td><td>(server-side on <code>/notifications</code> page)</td></tr><tr><td>PATCH</td><td><code>/api/notifications</code></td><td>same</td><td>(client-side "mark all read")</td></tr></tbody></table>
+<h3>6.10 Poster proxy (1 endpoint)</h3>
+<table><thead><tr><th>Method</th><th>Path</th><th>Handler file</th><th>Frontend caller(s)</th></tr></thead><tbody><tr><td>GET</td><td><code>/api/poster</code></td><td><code>app/api/poster/route.ts</code></td><td><code>components/movie/PosterDownloadButton.tsx</code> (built into an <code>&lt;a href&gt;</code> click)</td></tr></tbody></table>
+<p>Streams upstream image bytes with <code>Content-Disposition: attachment</code> so the browser downloads instead of displaying. Whitelisted in <code>proxy.ts</code> so it bypasses the auth gate.</p>
+<h3>6.11 Admin panel (11 endpoints)</h3>
+<table><thead><tr><th>Method</th><th>Path</th><th>Handler file</th><th>Frontend caller(s)</th></tr></thead><tbody><tr><td>POST</td><td><code>/api/admin/auth</code></td><td><code>app/api/admin/auth/route.ts</code></td><td><code>app/admin/login/AdminLoginForm.tsx:20</code>, <code>app/_components/LandingPage.tsx:127</code> (via <code>/api/admin/login</code>)</td></tr><tr><td>DELETE</td><td><code>/api/admin/auth</code></td><td>same</td><td><code>app/admin/_components/AdminLogoutButton.tsx:15</code></td></tr><tr><td>GET</td><td><code>/api/admin</code></td><td><code>app/api/admin/route.ts</code></td><td>(server-side on admin dashboard)</td></tr><tr><td>POST</td><td><code>/api/admin</code></td><td>same</td><td><code>app/admin/_components/AdminReportCard.tsx:27</code></td></tr><tr><td>POST</td><td><code>/api/admin/users/[id]/admin</code></td><td><code>app/api/admin/users/[id]/admin/route.ts</code></td><td><code>app/admin/_components/AdminUserActions.tsx:34</code></td></tr><tr><td>POST</td><td><code>/api/admin/users/[id]/ban</code></td><td><code>app/api/admin/users/[id]/ban/route.ts</code></td><td><code>app/admin/_components/AdminUserActions.tsx:60</code></td></tr><tr><td>POST</td><td><code>/api/admin/posts/[id]/hide</code></td><td><code>app/api/admin/posts/[id]/hide/route.ts</code></td><td><code>app/admin/_components/AdminPostActions.tsx:29</code> (optimistic toggle)</td></tr><tr><td>GET</td><td><code>/api/admin/movies/search</code></td><td><code>app/api/admin/movies/search/route.ts</code></td><td><code>app/admin/debates/_components/DebateForm.tsx:190</code></td></tr><tr><td>POST</td><td><code>/api/admin/debates</code></td><td><code>app/api/admin/debates/route.ts</code></td><td><code>app/admin/debates/_components/DebateForm.tsx:54</code></td></tr><tr><td>DELETE</td><td><code>/api/admin/debates/[id]</code></td><td><code>app/api/admin/debates/[id]/route.ts</code></td><td><code>app/admin/debates/_components/DeleteDebateButton.tsx:17</code></td></tr></tbody></table>
+<hr/>
+<h2>7. Data flow examples</h2>
+<h3>Rating a movie</h3>
+<ol>
+<li>User drags 5 sliders inside <code>components/movie/RatingModal.tsx</code> (opened from <code>MovieActions.tsx</code>).</li>
+<li>Client POSTs <code>/api/ratings</code> with <code>{ movie_id, story, direction, acting, visuals, rewatch, voltv_verdict }</code>.</li>
+<li>Route handler: Supabase auth → Redis rate limit (10/hr) → Zod validate → compute <code>overall_score</code> → Prisma upsert on <code>(user_id, movie_id)</code> → fire-and-forget: <code>updateMovieScores()</code>, <code>awardXP</code> (first time only — XP-farming guard), <code>updateStreak</code>, <code>checkAndAwardBadges</code>, <code>computeUserSimilarity</code>, invalidate heatmap cache.</li>
+<li>Response includes <code>data</code> + <code>xp_gained</code>.</li>
+</ol>
+<h3>For-You recommendations</h3>
+<ol>
+<li>User visits <code>/recommendations</code> (Server Component <code>app/recommendations/page.tsx</code>).</li>
+<li>Page calls <code>getCategorizedRecommendations(userId, 150)</code> from <code>lib/recommendation-engine.ts</code> — <strong>Prisma directly, no HTTP</strong>.</li>
+<li>Engine pulls 400 candidates, scores with 5 layers (collaborative filtering via <code>UserSimilarity</code>, content-based cosine on taste DNA, ML feature scoring, deep-embedding cosine, recency boost), applies genre-diversity cap, then buckets into 9–12 Netflix-style rails (e.g. "Because you loved {top rated}", "Top Anime Picks", "Critically Acclaimed").</li>
+<li>Server renders sections; no client fetch needed unless user refreshes.</li>
+</ol>
+<h3>Poster download</h3>
+<ol>
+<li><code>PosterDownloadButton</code> creates <code>&lt;a href="/api/poster?url=&lt;tmdb-url&gt;&amp;name=&lt;filename&gt;"&gt;</code>.</li>
+<li><code>/api/poster</code> is whitelisted by <code>proxy.ts</code> — no auth required.</li>
+<li>Handler verifies host is in allowlist (<code>image.tmdb.org</code>, <code>img.youtube.com</code>, <code>i.ytimg.com</code>), streams upstream bytes, sets <code>Content-Disposition: attachment</code>.</li>
+</ol>
+<h3>Admin hide/restore</h3>
+<ol>
+<li>Admin clicks eye icon. <code>AdminPostActions.tsx</code> flips optimistic state immediately.</li>
+<li><code>useRef&lt;AbortController&gt;</code> cancels any prior in-flight request (latest-click-wins).</li>
+<li>POST <code>/api/admin/posts/[id]/hide</code> with <code>{ is_hidden }</code>.</li>
+<li>On success → <code>router.refresh()</code>. On failure → revert optimistic state, toast error.</li>
+</ol>
+<hr/>
+<h2>8. Project tree (top level)</h2>
+<pre><code>voltv/
+├── app/
+│   ├── _components/              shared client components
+│   ├── admin/                    admin panel (cookie-gated)
+│   ├── api/                      44 route handlers — full list in §6
+│   ├── collections/ compose/ debates/ discover/
+│   ├── feed/ login/ movie/[id]/ notifications/
+│   ├── profile/[username]/ recommendations/
+│   ├── search/ settings/ social/
+│   ├── layout.tsx  page.tsx  globals.css
+├── components/                   reusable UI (feed, movie, profile, collections, ui)
+├── hooks/                        useAuth, useMovie, useStreak
+├── lib/                          prisma, supabase, tmdb, xp, heatmap,
+│                                 recommendation-engine, badge-engine, redis
+├── utils/                        voltv-score, formatters, personality
+├── types/                        shared TS types
+├── prisma/
+│   ├── schema.prisma
+│   └── migrations/
+├── scripts/                      seed-debates, backfill-bluetick
+├── proxy.ts                      auth + admin gate middleware
+├── public/                       static assets
+├── next.config.ts  tailwind.config.ts  tsconfig.json  package.json
+└── README.md  AGENTS.md  ARCHITECTURE.md (this file)</code></pre>
+<hr/>
+<h2>9. Environment variables</h2>
+<pre><code>DATABASE_URL=               # Neon pooled connection
+DIRECT_URL=                 # Neon direct (used by Prisma migrations)
+NEXT_PUBLIC_SUPABASE_URL=
+NEXT_PUBLIC_SUPABASE_ANON_KEY=
+SUPABASE_SERVICE_ROLE_KEY=
+TMDB_API_KEY=
+REDIS_URL=                  # optional — defaults to in-memory fallback
+ADMIN_USERNAME=
+ADMIN_PASSWORD=
+ADMIN_COOKIE_SECRET=        # signs the voltv_admin cookie</code></pre>
+<hr/>
+<h2>10. Summary numbers</h2>
+<ul>
+<li><strong>Languages:</strong> 1 (TypeScript)</li>
+<li><strong>Frameworks:</strong> Next.js 16 (frontend + backend), Prisma 7 (DB), Supabase (auth)</li>
+<li><strong>Route files:</strong> 44</li>
+<li><strong>HTTP endpoints:</strong> 58 (sum of <code>GET/POST/PATCH/DELETE</code> exports across all routes)</li>
+<li><strong>Most-called endpoint:</strong> <code>GET /api/movies/search</code> — 6 distinct callers (composers, search page, collection builders)</li>
+<li><strong>Top fan-in endpoint:</strong> <code>POST /api/reviews</code> — 5 distinct callers (compose modal, post composer, overlay, reply modal, movie discussion)</li>
+<li><strong>Server-rendered pages hitting Prisma directly (no HTTP):</strong> <code>/recommendations</code>, <code>/profile/[username]</code>, <code>/admin</code>, <code>/admin/debates</code>, <code>/debates</code>, <code>/notifications</code>, <code>/social</code>, <code>/leaderboard</code></li>
+</ul>
+</body></html>

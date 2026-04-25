@@ -1,6 +1,8 @@
 import Link from "next/link";
 import Image from "next/image";
+import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
+import { requireLiveAdmin } from "@/lib/admin-auth";
 import AdminLogoutButton from "./_components/AdminLogoutButton";
 import AdminUserActions from "./_components/AdminUserActions";
 import AdminPostActions from "./_components/AdminPostActions";
@@ -81,6 +83,8 @@ async function getDailyActivity(): Promise<DailyPoint[]> {
 }
 
 export default async function AdminPage() {
+  if (!(await requireLiveAdmin())) redirect("/admin/login");
+
   const [stats, dailyActivity, recentUsers, allAdmins, recentPosts, pendingReports] = await Promise.all([
     getStats(),
     getDailyActivity(),

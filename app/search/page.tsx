@@ -277,7 +277,7 @@ export default function SearchPage() {
               {results.map((movie) => (
                 <Link
                   key={movie.id}
-                  href={`/movie/${movie.id}`}
+                  href={type === "movie" ? `/movie/${movie.id}` : `/tv/${movie.id}`}
                   onClick={() => handleSelect(query)}
                   className="flex gap-3 p-3 card hover:border-white/10 cursor-pointer"
                 >

@@ -7,26 +7,31 @@ interface ScoreGaugeProps {
   tmdbId: number;
   initialComments: MovieComment[];
   size?: number;
+  kind?: "movie" | "tv";
+  scope?: string;
 }
 
-export default function ScoreGauge({ tmdbId, initialComments, size = 140 }: ScoreGaugeProps) {
+export default function ScoreGauge({ tmdbId, initialComments, size = 140, kind = "movie", scope }: ScoreGaugeProps) {
   const [comments, setComments] = useState(initialComments);
   const { score_pct: score, count } = statsFor(comments);
 
   useEffect(() => {
+    const url = scope
+      ? `/api/movie-comments?scope=${encodeURIComponent(scope)}`
+      : `/api/movie-comments?tmdb_id=${tmdbId}&kind=${kind}`;
     function refetch() {
-      fetch(`/api/movie-comments?tmdb_id=${tmdbId}`)
+      fetch(url)
         .then((r) => r.json())
         .then((d) => setComments(d.comments ?? []))
         .catch(() => {});
     }
     const handler = (e: Event) => {
-      const detail = (e as CustomEvent<number>).detail;
-      if (detail === tmdbId) refetch();
+      const detail = (e as CustomEvent<string | number>).detail;
+      if (detail === (scope ?? tmdbId)) refetch();
     };
     window.addEventListener("voltv-comments-updated", handler);
     return () => window.removeEventListener("voltv-comments-updated", handler);
-  }, [tmdbId]);
+  }, [tmdbId, kind, scope]);
 
   const radius = (size - 16) / 2;
   const circ   = 2 * Math.PI * radius;

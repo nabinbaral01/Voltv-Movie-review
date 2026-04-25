@@ -15,9 +15,11 @@ export function proxy(req: NextRequest) {
   }
 
   if (pathname.startsWith("/admin")) {
+    // Presence-only gate at the edge. The real authorization check
+    // (signature verification + live DB lookup for granted admins) runs
+    // inside each admin page and API route via requireLiveAdmin().
     const adminToken = req.cookies.get("voltv_admin")?.value;
-    const expected = process.env.ADMIN_COOKIE_SECRET;
-    if (!adminToken || adminToken !== expected) {
+    if (!adminToken) {
       const url = req.nextUrl.clone();
       url.pathname = "/admin/login";
       url.search = "";
