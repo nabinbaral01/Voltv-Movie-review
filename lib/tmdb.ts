@@ -223,8 +223,19 @@ export async function getMovieGenres() {
 
 export async function getPersonDetails(personId: number) {
   return tmdbFetch<TMDBPerson>(`/person/${personId}`, {
-    append_to_response: "movie_credits,images,external_ids",
+    append_to_response: "movie_credits,tv_credits,images,external_ids",
   });
+}
+
+export interface TMDBTVBasic {
+  id:             number;
+  name:           string;
+  original_name?: string;
+  poster_path:    string | null;
+  first_air_date: string | null;
+  vote_average:   number;
+  popularity:     number;
+  episode_count?: number;
 }
 
 export interface TMDBPerson {
@@ -237,7 +248,14 @@ export interface TMDBPerson {
   profile_path: string | null;
   known_for_department: string;
   also_known_as: string[];
-  movie_credits: { cast: (TMDBMovieBasic & { character?: string })[]; crew: (TMDBMovieBasic & { job?: string; department?: string })[] };
+  movie_credits: {
+    cast: (TMDBMovieBasic & { character?: string })[];
+    crew: (TMDBMovieBasic & { job?: string; department?: string })[];
+  };
+  tv_credits: {
+    cast: (TMDBTVBasic & { character?: string; episode_count?: number })[];
+    crew: (TMDBTVBasic & { job?: string; department?: string; episode_count?: number })[];
+  };
   images: { profiles: { file_path: string; width: number; height: number }[] };
   external_ids: { imdb_id: string | null; instagram_id: string | null; twitter_id: string | null };
 }

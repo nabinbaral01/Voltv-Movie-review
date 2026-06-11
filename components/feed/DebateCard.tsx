@@ -4,7 +4,6 @@ import { useState } from "react";
 import Image from "next/image";
 import { cn } from "@/utils/formatters";
 import { posterUrl } from "@/lib/tmdb";
-import Button from "@/components/ui/Button";
 import type { DailyDebate } from "@/types";
 
 interface DebateCardProps {
@@ -44,103 +43,130 @@ export default function DebateCard({ debate, onVote, compact }: DebateCardProps)
     return "Ended";
   })();
 
+  const winningSide: "a" | "b" | null = !hasVoted || pct_a === pct_b ? null : pct_a > pct_b ? "a" : "b";
+
+  const aGlow = winningSide === "a" ? "shadow-[inset_0_0_60px_-10px_rgba(229,9,20,0.55)]" : "";
+  const bGlow = winningSide === "b" ? "shadow-[inset_0_0_60px_-10px_rgba(59,130,246,0.55)]" : "";
+
   return (
-    <div className="card p-0 overflow-hidden">
+    <div
+      className={cn(
+        "glass-ios p-0 overflow-hidden",
+        winningSide === "a" && "ring-1 ring-[#E50914]/40",
+        winningSide === "b" && "ring-1 ring-[#3B82F6]/40",
+      )}
+    >
       {/* Header */}
-      <div className="px-4 pt-4 pb-3 border-b border-[#1E1E2E]">
-        <div className="flex items-center justify-between mb-1">
-          <span className="text-xs font-bold text-[#E50914] uppercase tracking-wider">
-            🗳️ Daily Debate
-          </span>
-          <span className="text-xs text-[#505060]">{timeLeft}</span>
+      <div className="px-4 pt-4 pb-3 border-b border-white/10 flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="flex items-center gap-2 mb-1.5">
+            <span className="inline-flex items-center gap-1 text-[10px] font-bold text-[#E50914] uppercase tracking-wider">
+              <span className="relative flex w-1.5 h-1.5">
+                <span className="absolute inline-flex h-full w-full rounded-full bg-[#E50914] opacity-75 animate-ping" />
+                <span className="relative inline-flex w-1.5 h-1.5 rounded-full bg-[#E50914]" />
+              </span>
+              Live Debate
+            </span>
+            {total > 0 && (
+              <span className="text-[10px] text-[#505060] font-mono">
+                · {total.toLocaleString()} {total === 1 ? "vote" : "votes"}
+              </span>
+            )}
+          </div>
+          <h3 className={cn("font-bold text-white truncate", compact ? "text-base" : "text-lg")}>
+            {debate.question}
+          </h3>
         </div>
-        <h3 className={cn("font-bold text-white", compact ? "text-base" : "text-lg")}>
-          {debate.question}
-        </h3>
-        {total > 0 && (
-          <p className="text-xs text-[#505060] mt-1">
-            {total.toLocaleString()} votes cast
-          </p>
-        )}
+        <span className="text-[11px] text-[#A0A0B0] font-mono whitespace-nowrap shrink-0 mt-0.5">
+          {timeLeft}
+        </span>
       </div>
 
-      {/* Movie options */}
-      <div className="flex">
-        {/* Option A */}
-        <DebateOption
+      {/* Scoreboard */}
+      <div className="px-4 py-5 grid grid-cols-[1fr_auto_1fr] items-center gap-3 sm:gap-5">
+        {/* Side A */}
+        <ScoreSide
           side="a"
           movie={debate.movie_a}
           label={debate.option_a}
           pct={pct_a}
           hasVoted={hasVoted}
           isChosen={optimisticVote === "a"}
-          compact={compact}
+          isWinning={winningSide === "a"}
+          glow={aGlow}
           onVote={() => handleVote("a")}
+          align="right"
         />
 
-        {/* VS divider */}
-        <div className="flex items-center justify-center px-2 shrink-0 bg-[#0A0A0F]">
-          <span className="text-[#505060] font-bold text-xs font-display tracking-wider">VS</span>
+        {/* Center divider */}
+        <div className="flex flex-col items-center gap-1.5 shrink-0">
+          <div className="glass-ios-sm w-10 h-10 !rounded-full flex items-center justify-center font-display text-xs tracking-widest text-white/80">
+            VS
+          </div>
+          {hasVoted && (
+            <span className="text-[10px] text-[#505060] font-mono">
+              {Math.abs(pct_a - pct_b)}% gap
+            </span>
+          )}
         </div>
 
-        {/* Option B */}
-        <DebateOption
+        {/* Side B */}
+        <ScoreSide
           side="b"
           movie={debate.movie_b}
           label={debate.option_b}
           pct={pct_b}
           hasVoted={hasVoted}
           isChosen={optimisticVote === "b"}
-          compact={compact}
+          isWinning={winningSide === "b"}
+          glow={bGlow}
           onVote={() => handleVote("b")}
+          align="left"
         />
       </div>
 
-      {/* Progress bar (visible after voting) */}
+      {/* Combined bar — shown post-vote */}
       {hasVoted && (
-        <div className="px-4 py-3 border-t border-[#1E1E2E]">
-          <div className="flex h-2 rounded-full overflow-hidden gap-0.5">
+        <div className="px-4 pb-4">
+          <div className="flex h-1.5 rounded-full overflow-hidden bg-white/5">
             <div
-              className="bg-[#E50914] rounded-l-full transition-all duration-700"
+              className="bg-[#E50914] transition-all duration-700 ease-out"
               style={{ width: `${pct_a}%` }}
             />
             <div
-              className="bg-[#3B82F6] rounded-r-full transition-all duration-700"
+              className="bg-[#3B82F6] transition-all duration-700 ease-out"
               style={{ width: `${pct_b}%` }}
             />
-          </div>
-          <div className="flex justify-between mt-1">
-            <span className="text-xs text-[#E50914] font-mono font-bold">{pct_a}%</span>
-            <span className="text-xs text-[#3B82F6] font-mono font-bold">{pct_b}%</span>
           </div>
         </div>
       )}
 
       {!hasVoted && (
-        <div className="px-4 py-3 border-t border-[#1E1E2E]">
-          <p className="text-xs text-[#505060] text-center">
-            Vote to see results · +5 XP
-          </p>
+        <div className="px-4 py-3 border-t border-white/10 flex items-center justify-between text-[11px]">
+          <span className="text-[#505060]">Tap a side to vote</span>
+          <span className="text-[#F5A623] font-semibold">+5 XP</span>
         </div>
       )}
     </div>
   );
 }
 
-interface DebateOptionProps {
+interface ScoreSideProps {
   side: "a" | "b";
   movie: DailyDebate["movie_a"];
   label: string;
   pct: number;
   hasVoted: boolean;
   isChosen: boolean;
-  compact?: boolean;
+  isWinning: boolean;
+  glow: string;
   onVote: () => void;
+  align: "left" | "right";
 }
 
-function DebateOption({
-  side, movie, label, pct, hasVoted, isChosen, compact, onVote,
-}: DebateOptionProps) {
+function ScoreSide({
+  side, movie, label, pct, hasVoted, isChosen, isWinning, glow, onVote, align,
+}: ScoreSideProps) {
   const accentColor = side === "a" ? "#E50914" : "#3B82F6";
 
   return (
@@ -148,60 +174,53 @@ function DebateOption({
       onClick={onVote}
       disabled={hasVoted}
       className={cn(
-        "flex-1 flex flex-col items-center p-3 gap-2 transition-all duration-200",
-        "relative overflow-hidden group",
-        !hasVoted && "hover:bg-white/[0.03] cursor-pointer",
-        isChosen && "bg-white/[0.04]"
+        "glass-ios-sm group relative flex items-center gap-3 p-2.5 transition-all duration-200 min-w-0",
+        align === "right" ? "flex-row-reverse text-right" : "flex-row text-left",
+        !hasVoted && "hover:-translate-y-0.5 hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.35),0_14px_28px_-10px_rgba(0,0,0,0.55)] cursor-pointer",
+        glow,
       )}
-      style={isChosen ? { boxShadow: `inset 0 0 0 1px ${accentColor}40` } : {}}
+      style={isChosen ? { boxShadow: `inset 0 1px 0 rgba(255,255,255,0.3), inset 0 0 0 1.5px ${accentColor}99, 0 12px 28px -8px ${accentColor}55` } : {}}
     >
-      {/* Poster */}
-      <div className={cn(
-        "relative rounded-[8px] overflow-hidden bg-[#1A1A28]",
-        compact ? "w-16 h-24" : "w-20 h-[120px]"
-      )}>
+      {/* Poster chip */}
+      <div className="relative w-24 h-[144px] sm:w-32 sm:h-[192px] shrink-0 rounded-2xl overflow-hidden bg-white/5 ring-1 ring-white/15 shadow-[0_6px_16px_-6px_rgba(0,0,0,0.5)]">
         {movie.poster_url && (
           <Image
-            src={posterUrl(movie.poster_url.replace("https://image.tmdb.org/t/p/w500", ""), "w185")}
+            src={posterUrl(movie.poster_url.replace("https://image.tmdb.org/t/p/w500", ""), "w342")}
             alt={movie.title}
             fill
             className="object-cover"
-            sizes="80px"
+            sizes="(max-width: 640px) 96px, 128px"
           />
         )}
         {isChosen && (
-          <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
-            <span className="text-2xl">✓</span>
+          <div
+            className="absolute inset-0 flex items-center justify-center text-white text-lg font-bold"
+            style={{ background: `${accentColor}66` }}
+          >
+            ✓
           </div>
         )}
       </div>
 
-      {/* Title */}
-      <p className="text-xs font-semibold text-white text-center line-clamp-2 leading-tight">
-        {movie.title}
-      </p>
-
-      {/* Label / result */}
-      {hasVoted ? (
-        <span
-          className="text-sm font-bold font-mono"
-          style={{ color: isChosen ? accentColor : "#505060" }}
-        >
-          {pct}%
-        </span>
-      ) : (
-        <span className="text-xs text-[#505060] text-center line-clamp-1">{label}</span>
-      )}
-
-      {/* Chosen check */}
-      {isChosen && (
-        <div
-          className="absolute top-2 right-2 w-5 h-5 rounded-full flex items-center justify-center text-xs"
-          style={{ background: accentColor }}
-        >
-          ✓
-        </div>
-      )}
+      {/* Title + score column */}
+      <div className="min-w-0 flex-1">
+        <p className="text-xs sm:text-sm font-semibold text-white leading-tight line-clamp-2">
+          {movie.title}
+        </p>
+        {hasVoted ? (
+          <p
+            className={cn(
+              "font-mono font-bold leading-none mt-1",
+              isWinning ? "text-2xl sm:text-3xl" : "text-xl sm:text-2xl",
+            )}
+            style={{ color: isWinning ? accentColor : "#A0A0B0" }}
+          >
+            {pct}%
+          </p>
+        ) : (
+          <p className="text-[11px] text-[#505060] line-clamp-1 mt-0.5">{label}</p>
+        )}
+      </div>
     </button>
   );
 }

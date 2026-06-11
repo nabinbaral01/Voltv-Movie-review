@@ -292,7 +292,7 @@ export default async function DiscoverPage({
           {/* STREAMING SERVICES */}
           {!moods.length && !decade && !country && kind === "movie" &&(
             <section>
-              <h2 className="text-lg font-bold text-white mb-4">📺 By Platform</h2>
+              <h2 className="text-lg font-bold text-white mb-4">By Platform</h2>
               <div className="flex flex-wrap gap-2">
                 {STREAMING_SERVICES.map((svc) => (
                   <Link

@@ -1,11 +1,11 @@
 import { notFound } from "next/navigation";
 import Image from "next/image";
-import Link from "next/link";
 import type { Metadata } from "next";
-import { getPersonDetails, profileUrl, posterUrl } from "@/lib/tmdb";
+import { getPersonDetails, profileUrl } from "@/lib/tmdb";
 import Topbar from "@/components/layout/Topbar";
 import Sidebar, { BottomNav } from "@/components/layout/Sidebar";
 import { Calendar, MapPin } from "lucide-react";
+import Filmography, { type FilmoItem } from "./Filmography";
 
 interface Props {
   params: Promise<{ id: string }>;
@@ -33,9 +33,31 @@ export default async function ActorPage({ params }: Props) {
     notFound();
   }
 
-  const movies = person.movie_credits.cast
+  const movieItems: FilmoItem[] = person.movie_credits.cast
     .filter((m) => m.poster_path)
-    .sort((a, b) => b.popularity - a.popularity);
+    .map((m) => ({
+      kind:         "movie",
+      id:           m.id,
+      title:        m.title,
+      poster_path:  m.poster_path,
+      date:         m.release_date ?? null,
+      character:    m.character ?? null,
+      vote_average: m.vote_average,
+    }));
+  const tvItems: FilmoItem[] = (person.tv_credits?.cast ?? [])
+    .filter((t) => t.poster_path)
+    .map((t) => ({
+      kind:         "tv",
+      id:           t.id,
+      title:        t.name,
+      poster_path:  t.poster_path,
+      date:         t.first_air_date ?? null,
+      character:    t.character ?? null,
+      vote_average: t.vote_average,
+    }));
+  const filmography: FilmoItem[] = [...movieItems, ...tvItems].sort(
+    (a, b) => (b.date ?? "").localeCompare(a.date ?? "")
+  );
 
   const age = person.birthday ? calcAge(person.birthday, person.deathday) : null;
 
@@ -129,52 +151,8 @@ export default async function ActorPage({ params }: Props) {
             </div>
           )}
 
-          {/* Filmography */}
-          {movies.length > 0 && (
-            <div>
-              <h2 className="text-sm font-semibold text-[#A0A0B0] uppercase tracking-wide mb-4">
-                Filmography
-                <span className="ml-2 text-[#505060] font-normal">({movies.length})</span>
-              </h2>
-              <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 gap-4">
-                {movies.map((m) => (
-                  <Link key={`${m.id}-${m.character}`} href={`/movie/${m.id}`} className="group">
-                    <div className="relative aspect-[2/3] rounded-xl overflow-hidden bg-[#1A1A28] border border-[#1E1E2E] group-hover:border-[#E50914]/40 transition-colors">
-                      {m.poster_path ? (
-                        <Image
-                          src={posterUrl(m.poster_path, "w342")}
-                          alt={m.title}
-                          fill
-                          sizes="(max-width:640px) 33vw, (max-width:1024px) 20vw, 14vw"
-                          className="object-cover group-hover:scale-105 transition-transform duration-300"
-                        />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center text-2xl text-[#505060]">🎬</div>
-                      )}
-                      {m.vote_average > 0 && (
-                        <div className="absolute top-1.5 right-1.5 text-[9px] font-bold bg-black/70 text-white px-1.5 py-0.5 rounded">
-                          {m.vote_average.toFixed(1)}
-                        </div>
-                      )}
-                    </div>
-                    <div className="mt-1.5">
-                      <h3 className="text-xs font-semibold text-white truncate group-hover:text-[#E50914] transition-colors">
-                        {m.title}
-                      </h3>
-                      {m.character && (
-                        <p className="text-[10px] text-[#505060] truncate mt-0.5">
-                          {m.character}
-                        </p>
-                      )}
-                      {m.release_date && (
-                        <p className="text-[10px] text-[#505060]">{m.release_date.slice(0, 4)}</p>
-                      )}
-                    </div>
-                  </Link>
-                ))}
-              </div>
-            </div>
-          )}
+          {/* Filmography (movies + TV with filter) */}
+          {filmography.length > 0 && <Filmography items={filmography} />}
         </main>
       </div>
       <BottomNav />

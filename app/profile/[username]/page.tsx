@@ -37,49 +37,80 @@ export default async function ProfilePage(
 ) {
   const { username } = await params;
 
-  const user = await prisma.user.findUnique({
-    where: { username },
-    include: {
-      achievements: { orderBy: { earned_at: "desc" } },
-      _count: {
-        select: {
-          followers: true,
-          following: true,
-          watch_history: true,
-          reviews: true,
+  // User fetch + auth check are independent — run in parallel
+  const supabase = await createServerSupabaseClient();
+  const [user, authResult] = await Promise.all([
+    prisma.user.findUnique({
+      where: { username },
+      include: {
+        achievements: { orderBy: { earned_at: "desc" } },
+        _count: {
+          select: {
+            followers: true,
+            following: true,
+            watch_history: true,
+            reviews: true,
+          },
         },
       },
-    },
-  });
+    }),
+    supabase.auth.getUser(),
+  ]);
 
   if (!user) notFound();
 
-  // Determine if viewing own profile
-  const supabase = await createServerSupabaseClient();
-  const { data: { user: authUser } } = await supabase.auth.getUser();
+  const authUser = authResult.data.user;
   const isOwner = !!authUser && authUser.id === user.supabase_id;
 
-  // Initial follow state for the Follow button
-  let initialFollowing = false;
-  if (authUser && !isOwner) {
-    const viewer = await prisma.user.findUnique({
-      where: { supabase_id: authUser.id }, select: { id: true },
-    });
-    if (viewer) {
-      const f = await prisma.follow.findUnique({
-        where: { follower_id_following_id: { follower_id: viewer.id, following_id: user.id } },
-      });
-      initialFollowing = !!f;
-    }
-  }
+  // Follow check, heatmap, stats, favourites, watch lists — all independent of each other,
+  // so fire them in one parallel batch instead of sequentially. (DB is in us-east-1; each
+  // serial round trip costs ~250-400ms from outside the US, so collapsing 4 rounds into 1
+  // is a major win.)
+  const followCheckPromise: Promise<boolean> =
+    authUser && !isOwner
+      ? (async () => {
+          const viewer = await prisma.user.findUnique({
+            where: { supabase_id: authUser.id }, select: { id: true },
+          });
+          if (!viewer) return false;
+          const f = await prisma.follow.findUnique({
+            where: { follower_id_following_id: { follower_id: viewer.id, following_id: user.id } },
+            select: { follower_id: true },
+          });
+          return !!f;
+        })()
+      : Promise.resolve(false);
 
-  // Stats
-  const [heatmapData, watchStats] = await Promise.all([
+  const [
+    heatmapData,
+    watchStats,
+    favourites,
+    watchedList,
+    watchLaterList,
+    initialFollowing,
+  ] = await Promise.all([
     generateHeatmap(user.id),
     prisma.watchHistory.findMany({
       where:  { user_id: user.id, status: "watched" },
       select: { movie: { select: { runtime: true, countries: true, genres: true } } },
     }),
+    prisma.rating.findMany({
+      where:   { user_id: user.id },
+      orderBy: { overall_score: "desc" },
+      take:    4,
+      include: { movie: { select: { id: true, tmdb_id: true, title: true, poster_url: true, release_date: true, voltv_score: true, genres: true, runtime: true } } },
+    }),
+    prisma.watchHistory.findMany({
+      where:   { user_id: user.id, status: "watched" },
+      orderBy: { watched_date: "desc" },
+      include: { movie: { select: { id: true, tmdb_id: true, title: true, poster_url: true, release_date: true, languages: true, genres: true } } },
+    }),
+    prisma.watchHistory.findMany({
+      where:   { user_id: user.id, status: "want_to_watch" },
+      orderBy: { updated_at: "desc" },
+      include: { movie: { select: { id: true, tmdb_id: true, title: true, poster_url: true, release_date: true, languages: true, genres: true } } },
+    }),
+    followCheckPromise,
   ]);
 
   const totalMinutes = watchStats.reduce((sum, w) => sum + (w.movie.runtime ?? 0), 0);
@@ -188,28 +219,6 @@ export default async function ProfilePage(
     tabMedia.push({ id: r.id, tmdb_id: r.movie.tmdb_id, title: r.movie.title, poster_url: r.movie.poster_url });
     if (tabMedia.length >= 24) break;
   }
-
-  // Favourite movies (top 4 by rating)
-  const favourites = await prisma.rating.findMany({
-    where:   { user_id: user.id },
-    orderBy: { overall_score: "desc" },
-    take:    4,
-    include: { movie: { select: { id: true, tmdb_id: true, title: true, poster_url: true, release_date: true, voltv_score: true, genres: true, runtime: true } } },
-  });
-
-  // Watched + Watch Later lists (most recent first)
-  const [watchedList, watchLaterList] = await Promise.all([
-    prisma.watchHistory.findMany({
-      where:   { user_id: user.id, status: "watched" },
-      orderBy: { watched_date: "desc" },
-      include: { movie: { select: { id: true, tmdb_id: true, title: true, poster_url: true, release_date: true, languages: true, genres: true } } },
-    }),
-    prisma.watchHistory.findMany({
-      where:   { user_id: user.id, status: "want_to_watch" },
-      orderBy: { updated_at: "desc" },
-      include: { movie: { select: { id: true, tmdb_id: true, title: true, poster_url: true, release_date: true, languages: true, genres: true } } },
-    }),
-  ]);
 
   return (
     <div className="min-h-screen bg-[#0A0A0F]">

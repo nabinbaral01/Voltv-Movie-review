@@ -1,11 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import { Lock, User, Shield, Eye, EyeOff } from "lucide-react";
 
 export default function AdminLoginForm() {
-  const router = useRouter();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [showPass, setShowPass] = useState(false);
@@ -24,11 +22,11 @@ export default function AdminLoginForm() {
       });
       const json = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(json.error || "Invalid credentials");
-      router.push("/admin");
-      router.refresh();
+      // Hard navigation: forces the browser to send the freshly-set admin cookie
+      // and bypasses the router cache that may still hold the pre-auth redirect.
+      window.location.assign("/admin");
     } catch (e) {
       setError(e instanceof Error ? e.message : "Login failed");
-    } finally {
       setLoading(false);
     }
   }

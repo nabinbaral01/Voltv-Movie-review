@@ -51,14 +51,14 @@ export function setLocalWatchStatus(tmdbId: number, status: "watched" | "want_to
 }
 
 export function useWatchStatus(tmdbId: number) {
-  const [status, setStatus] = useState<"watched" | "want_to_watch" | null>(() => {
-    if (!cached) return null;
-    if (cached.watched.has(tmdbId))       return "watched";
-    if (cached.want_to_watch.has(tmdbId)) return "want_to_watch";
-    return null;
-  });
+  const [status, setStatus] = useState<"watched" | "want_to_watch" | null>(null);
 
   useEffect(() => {
+    if (cached) {
+      if (cached.watched.has(tmdbId))            setStatus("watched");
+      else if (cached.want_to_watch.has(tmdbId)) setStatus("want_to_watch");
+      else                                       setStatus(null);
+    }
     const listener: Listener = (m) => {
       if (m.watched.has(tmdbId))            setStatus("watched");
       else if (m.want_to_watch.has(tmdbId)) setStatus("want_to_watch");

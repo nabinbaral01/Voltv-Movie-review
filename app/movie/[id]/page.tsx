@@ -9,6 +9,7 @@ import { readFireStore, topFires } from "@/lib/fires";
 import MostDiscussedSidebar from "@/components/discover/MostDiscussedSidebar";
 import { formatRuntime, extractYear } from "@/utils/formatters";
 import { readCommentsFor } from "@/lib/comments";
+import { prisma } from "@/lib/prisma";
 import { getSessionUser } from "@/lib/auth";
 import { BLUE_TICK_XP_THRESHOLD } from "@/lib/xp-system";
 import CommentSection from "./_components/CommentSection";
@@ -16,6 +17,8 @@ import WatchActions from "./_components/WatchActions";
 import ScoreGauge from "./_components/ScoreGauge";
 import ScoreMeter from "./_components/ScoreMeter";
 import FireButton from "@/components/movie/FireButton";
+import StarRating from "@/components/movie/StarRating";
+import RateButton from "@/components/movie/RateButton";
 import StreamsOn from "./_components/StreamsOn";
 import TrailerHero from "./_components/TrailerHero";
 import PosterDownloadButton from "@/components/movie/PosterDownloadButton";
@@ -32,6 +35,14 @@ export default async function MoviePage({ params }: { params: Promise<{ id: stri
   } catch {
     notFound();
   }
+
+  const voltvAgg = await prisma.rating.aggregate({
+    where:  { movie: { tmdb_id: tmdbId } },
+    _avg:   { overall_score: true },
+    _count: { _all: true },
+  });
+  const voltvAvg5  = (voltvAgg._avg.overall_score ?? 0) / 2;
+  const voltvCount = voltvAgg._count._all;
 
   const comments = await readCommentsFor(tmdbId);
   const me       = await getSessionUser();
@@ -107,9 +118,6 @@ export default async function MoviePage({ params }: { params: Promise<{ id: stri
                   const revenue = formatMoney((movie as { revenue?: number }).revenue);
                   const voteAvg  = (movie as { vote_average?: number }).vote_average;
                   const voteCount = (movie as { vote_count?: number }).vote_count;
-                  const rating = voteAvg && voteAvg > 0
-                    ? `${voteAvg.toFixed(1)}${voteCount ? ` (${voteCount >= 1000 ? `${(voteCount/1000).toFixed(1)}K` : voteCount})` : ""}`
-                    : "—";
 
                   return (
                     <div className="flex gap-5 items-start">
@@ -121,10 +129,25 @@ export default async function MoviePage({ params }: { params: Promise<{ id: stri
                       )}
                       <div className="flex-1 min-w-0 pt-2 space-y-3">
                         <div>
-                          <div className="text-xs text-[#A0A0B0] mb-1">
+                          <div className="text-xs text-[#A0A0B0] mb-2">
                             Movie
                             {movie.release_date && <> · {extractYear(movie.release_date)}</>}
                             {movie.runtime && <> · {formatRuntime(movie.runtime)}</>}
+                          </div>
+                          <div className="mb-3 flex items-center gap-4 flex-wrap">
+                            <RateButton
+                              tmdbId={tmdbId}
+                              mediaKind="movie"
+                              title={movie.title}
+                              posterUrl={poster}
+                            />
+                            {voltvCount > 0 && (
+                              <div className="inline-flex items-center gap-2 pl-4 border-l border-white/10">
+                                <span className="text-[11px] uppercase tracking-wider text-[#6B6B80] font-bold">Avg</span>
+                                <span className="text-xs font-bold text-white tabular-nums">{voltvAvg5.toFixed(1)}</span>
+                                <span className="text-[11px] text-[#6B6B80]">({voltvCount})</span>
+                              </div>
+                            )}
                           </div>
                           <div className="flex items-start gap-3 flex-wrap">
                             <h1 className="font-display text-3xl sm:text-5xl text-white leading-tight">
@@ -150,7 +173,6 @@ export default async function MoviePage({ params }: { params: Promise<{ id: stri
                           <InfoCell label="Age Rating"  value={ageRating} />
                         </dl>
                         <dl className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                          <InfoCell label="Rating"  value={rating} />
                           <InfoCell label="Revenue" value={revenue} />
                         </dl>
                       </div>

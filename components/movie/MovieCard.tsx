@@ -5,6 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { cn, formatScore, formatRuntime, extractYear, scoreColor } from "@/utils/formatters";
 import { posterUrl } from "@/lib/tmdb";
+import { decodeStorageId } from "@/lib/media-kind";
 import PosterActions from "./PosterActions";
 import type { MovieCard as MovieCardType } from "@/types";
 
@@ -36,9 +37,13 @@ export default function MovieCard({
 
   const aspectClasses = "aspect-[2/3]";
 
+  // TV shows are stored in the same table with an offset tmdb_id; decode for routing.
+  const { tmdbId: realTmdbId, kind } = decodeStorageId(movie.tmdb_id);
+  const href = kind === "tv" ? `/tv/${realTmdbId}` : `/movie/${realTmdbId}`;
+
   return (
     <Link
-      href={`/movie/${movie.tmdb_id}`}
+      href={href}
       className={cn("flex flex-col gap-2 group", sizeClasses[size], className)}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
@@ -95,7 +100,8 @@ export default function MovieCard({
 
         {/* Quick actions — Watched (eye) + Watch Later (plus) + Fire */}
         <PosterActions
-          tmdbId={movie.tmdb_id}
+          tmdbId={realTmdbId}
+          kind={kind}
           alwaysShowWatched
           title={movie.title}
           posterUrl={movie.poster_url}

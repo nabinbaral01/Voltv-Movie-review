@@ -4,6 +4,7 @@
 // ─────────────────────────────────────────────────────────────────────
 
 import { prisma } from "@/lib/prisma";
+import { TV_TMDB_OFFSET } from "@/lib/media-kind";
 import type { TasteDNA } from "@/types";
 
 // ── Types ─────────────────────────────────────────────────────────
@@ -292,23 +293,31 @@ export async function getRecommendations(
   ]);
 
   // 5. Get candidate movies (pool of potential recommendations)
-  const candidates = await prisma.movie.findMany({
-    where: {
-      id:        { notIn: [...seenSet] },
-      is_upcoming: false,
-    },
-    orderBy: [
-      { tmdb_popularity: "desc" },
-    ],
-    take: 400,
-    select: {
-      id: true, tmdb_id: true, title: true, poster_url: true,
-      release_date: true, genres: true, runtime: true,
-      voltv_score: true, tmdb_rating: true, tmdb_popularity: true,
-      total_ratings_count: true, total_reviews_count: true,
-      voltv_masterpiece_pct: true, editors_pick: true,
-    },
-  });
+  // Split the pool by media kind so TV shows (and anime TV) aren't crowded out by movies'
+  // generally higher tmdb_popularity. TV is stored in the same table with tmdb_id >= TV_TMDB_OFFSET.
+  const candidateSelect = {
+    id: true, tmdb_id: true, title: true, poster_url: true,
+    release_date: true, genres: true, runtime: true,
+    voltv_score: true, tmdb_rating: true, tmdb_popularity: true,
+    total_ratings_count: true, total_reviews_count: true,
+    voltv_masterpiece_pct: true, editors_pick: true,
+  } as const;
+
+  const [movieCandidates, tvCandidates] = await Promise.all([
+    prisma.movie.findMany({
+      where:   { id: { notIn: [...seenSet] }, is_upcoming: false, tmdb_id: { lt: TV_TMDB_OFFSET } },
+      orderBy: [{ tmdb_popularity: "desc" }],
+      take:    250,
+      select:  candidateSelect,
+    }),
+    prisma.movie.findMany({
+      where:   { id: { notIn: [...seenSet] }, is_upcoming: false, tmdb_id: { gte: TV_TMDB_OFFSET } },
+      orderBy: [{ tmdb_popularity: "desc" }],
+      take:    150,
+      select:  candidateSelect,
+    }),
+  ]);
+  const candidates = [...movieCandidates, ...tvCandidates];
 
   // 6. Score each candidate through all 5 layers
   const scored: RecommendedMovie[] = [];
@@ -497,22 +506,29 @@ export async function getQuickRecommendations(
   excludeIds: string[],
   limit: number = 10,
 ): Promise<RecommendedMovie[]> {
-  const candidates = await prisma.movie.findMany({
-    where: {
-      id: { notIn: excludeIds },
-      is_upcoming: false,
-      tmdb_rating: { gte: 6 },
-    },
-    orderBy: { tmdb_popularity: "desc" },
-    take: 100,
-    select: {
-      id: true, tmdb_id: true, title: true, poster_url: true,
-      release_date: true, genres: true, runtime: true,
-      voltv_score: true, tmdb_rating: true, tmdb_popularity: true,
-      total_ratings_count: true, total_reviews_count: true,
-      voltv_masterpiece_pct: true, editors_pick: true,
-    },
-  });
+  const quickSelect = {
+    id: true, tmdb_id: true, title: true, poster_url: true,
+    release_date: true, genres: true, runtime: true,
+    voltv_score: true, tmdb_rating: true, tmdb_popularity: true,
+    total_ratings_count: true, total_reviews_count: true,
+    voltv_masterpiece_pct: true, editors_pick: true,
+  } as const;
+
+  const [movieRows, tvRows] = await Promise.all([
+    prisma.movie.findMany({
+      where:   { id: { notIn: excludeIds }, is_upcoming: false, tmdb_rating: { gte: 6 }, tmdb_id: { lt: TV_TMDB_OFFSET } },
+      orderBy: { tmdb_popularity: "desc" },
+      take:    70,
+      select:  quickSelect,
+    }),
+    prisma.movie.findMany({
+      where:   { id: { notIn: excludeIds }, is_upcoming: false, tmdb_rating: { gte: 6 }, tmdb_id: { gte: TV_TMDB_OFFSET } },
+      orderBy: { tmdb_popularity: "desc" },
+      take:    40,
+      select:  quickSelect,
+    }),
+  ]);
+  const candidates = [...movieRows, ...tvRows];
 
   return candidates
     .map((movie) => {
