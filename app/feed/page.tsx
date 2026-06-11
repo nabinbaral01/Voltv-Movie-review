@@ -82,7 +82,7 @@ export default async function FeedPage() {
               {visiblePosts.map((p) => (
                 <PostCard
                   key={p.id}
-                  post={p}
+                  post={{ ...p, visibility: p.visibility as "public" | "unlisted" | "followers", media_type: p.media_type as "image" | "video" | null }}
                   isOwner={p.user_id === dbUser.id}
                   initialLiked={likedSet.has(p.id)}
                   initialReposted={repostedSet.has(p.id)}

@@ -161,7 +161,7 @@ export default async function SocialPage(
                 {posts.map((p) => (
                   <PostCard
                     key={p.id}
-                    post={p}
+                    post={{ ...p, visibility: p.visibility as "public" | "unlisted" | "followers", media_type: p.media_type as "image" | "video" | null }}
                     initialLiked={likedSet.has(p.id)}
                     initialReposted={repostedSet.has(p.id)}
                     initialBookmarked={bookmarkedSet.has(p.id)}

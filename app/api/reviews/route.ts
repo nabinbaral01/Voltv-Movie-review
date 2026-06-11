@@ -105,7 +105,7 @@ export async function POST(req: NextRequest) {
       select: { movie_id: true, user_id: true },
     });
     if (!parent) return NextResponse.json({ error: "Parent post not found" }, { status: 404 });
-    movie_id = movie_id || parent.movie_id;
+    movie_id = movie_id || parent.movie_id || undefined;
     parentUserId = parent.user_id;
   }
 
@@ -115,7 +115,7 @@ export async function POST(req: NextRequest) {
       select: { movie_id: true },
     });
     if (!q) return NextResponse.json({ error: "Quoted post not found" }, { status: 404 });
-    movie_id = movie_id || q.movie_id;
+    movie_id = movie_id || q.movie_id || undefined;
   }
 
   // movie_id is optional — freeform posts allowed
