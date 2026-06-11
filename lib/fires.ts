@@ -1,7 +1,4 @@
-import fs from "node:fs/promises";
-import path from "node:path";
-
-const FILE = path.join(process.cwd(), "data", "fires.json");
+import { prisma } from "./prisma";
 
 export type FireKind = "movie" | "tv";
 
@@ -22,17 +19,62 @@ export function fireKey(tmdbId: number, kind: FireKind): string {
 }
 
 export async function readFireStore(): Promise<FireStore> {
-  try {
-    const raw = await fs.readFile(FILE, "utf8");
-    return JSON.parse(raw) as FireStore;
-  } catch {
-    return {};
+  const rows = await prisma.fire.findMany();
+  const store: FireStore = {};
+  for (const r of rows) {
+    store[r.key] = {
+      tmdb_id:    r.tmdb_id,
+      kind:       r.kind as FireKind,
+      title:      r.title,
+      poster_url: r.poster_url,
+      count:      r.count,
+      users:      r.users,
+      updatedAt:  r.updated_at.toISOString(),
+    };
   }
+  return store;
 }
 
-export async function writeFireStore(store: FireStore): Promise<void> {
-  await fs.mkdir(path.dirname(FILE), { recursive: true });
-  await fs.writeFile(FILE, JSON.stringify(store, null, 2), "utf8");
+// Toggle a user's fire on an item. Returns the new count and whether the user
+// now has it fired. Replaces the old read-all / write-all JSON flow.
+export async function toggleFire(args: {
+  tmdbId: number;
+  kind:   FireKind;
+  title:  string;
+  poster: string | null;
+  userId: string;
+}): Promise<{ count: number; fired: boolean }> {
+  const key      = fireKey(args.tmdbId, args.kind);
+  const existing = await prisma.fire.findUnique({ where: { key } });
+
+  const alreadyFired = existing?.users.includes(args.userId) ?? false;
+  const users = alreadyFired
+    ? (existing!.users.filter((id) => id !== args.userId))
+    : [...(existing?.users ?? []), args.userId];
+  const count = alreadyFired
+    ? Math.max(0, (existing?.count ?? 0) - 1)
+    : (existing?.count ?? 0) + 1;
+
+  await prisma.fire.upsert({
+    where:  { key },
+    create: {
+      key,
+      tmdb_id:    args.tmdbId,
+      kind:       args.kind,
+      title:      args.title,
+      poster_url: args.poster,
+      count,
+      users,
+    },
+    update: {
+      title:      args.title,
+      poster_url: args.poster ?? existing?.poster_url ?? null,
+      count,
+      users,
+    },
+  });
+
+  return { count, fired: !alreadyFired };
 }
 
 export function topFires(store: FireStore, limit = 10): FireEntry[] {

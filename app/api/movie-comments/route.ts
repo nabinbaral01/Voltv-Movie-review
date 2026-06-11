@@ -1,39 +1,20 @@
 import { NextRequest, NextResponse } from "next/server";
-import fs from "node:fs/promises";
-import path from "node:path";
-import crypto from "node:crypto";
-import type { MovieComment, Verdict, MediaKind } from "@/lib/comments";
-import { commentKey } from "@/lib/comments";
+import type { Verdict, MediaKind } from "@/lib/comments";
+import { commentKey, toMovieComment } from "@/lib/comments";
+import { prisma } from "@/lib/prisma";
 
-const FILE = path.join(process.cwd(), "data", "comments.json");
 const VERDICTS: Verdict[] = ["skip", "timepass", "watchit", "masterpiece"];
 
 function parseKind(raw: string | null | undefined): MediaKind {
   return raw === "tv" ? "tv" : "movie";
 }
 
-// Only allow safe chars in an explicit scope to keep the JSON key space sane.
+// Only allow safe chars in an explicit scope to keep the key space sane.
 function sanitizeScope(raw: string | null | undefined): string | null {
   if (!raw) return null;
   const trimmed = raw.trim();
   if (!trimmed || trimmed.length > 80) return null;
   return /^[a-zA-Z0-9:_\-]+$/.test(trimmed) ? trimmed : null;
-}
-
-type Store = Record<string, MovieComment[]>;
-
-async function readStore(): Promise<Store> {
-  try {
-    const raw = await fs.readFile(FILE, "utf8");
-    return JSON.parse(raw) as Store;
-  } catch {
-    return {};
-  }
-}
-
-async function writeStore(store: Store) {
-  await fs.mkdir(path.dirname(FILE), { recursive: true });
-  await fs.writeFile(FILE, JSON.stringify(store, null, 2), "utf8");
 }
 
 export async function GET(req: NextRequest) {
@@ -49,12 +30,14 @@ export async function GET(req: NextRequest) {
     key = commentKey(Number(tmdbId), kind);
   }
 
-  const store = await readStore();
-  const list  = store[key] ?? [];
+  const rows = await prisma.movieComment.findMany({
+    where:   { scope: key },
+    orderBy: { created_at: "desc" },
+  });
 
   return NextResponse.json({
-    comments: [...list].sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
-    count: list.length,
+    comments: rows.map(toMovieComment),
+    count: rows.length,
   });
 }
 
@@ -74,19 +57,17 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "tmdb_id or scope required" }, { status: 400 });
   }
 
-  const comment: MovieComment = {
-    id: crypto.randomUUID(),
-    tmdb_id: tmdbId || 0,
-    username,
-    verdict,
-    text,
-    createdAt: new Date().toISOString(),
-  };
-
-  const store = await readStore();
   const key = scope ?? commentKey(tmdbId, kind);
-  store[key] = [...(store[key] ?? []), comment];
-  await writeStore(store);
 
-  return NextResponse.json({ comment });
+  const row = await prisma.movieComment.create({
+    data: {
+      scope:   key,
+      tmdb_id: tmdbId || 0,
+      username,
+      verdict,
+      text,
+    },
+  });
+
+  return NextResponse.json({ comment: toMovieComment(row) });
 }

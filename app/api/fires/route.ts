@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSessionUser } from "@/lib/auth";
-import { readFireStore, writeFireStore, fireKey, topFires, type FireKind } from "@/lib/fires";
+import { readFireStore, toggleFire, fireKey, topFires, type FireKind } from "@/lib/fires";
 
 function parseKind(raw: unknown): FireKind {
   return raw === "tv" ? "tv" : "movie";
@@ -48,33 +48,13 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "title required" }, { status: 400 });
   }
 
-  const store = await readFireStore();
-  const key = fireKey(tmdbId, kind);
-  const entry = store[key] ?? {
-    tmdb_id:    tmdbId,
+  const { count, fired } = await toggleFire({
+    tmdbId,
     kind,
     title,
-    poster_url: poster,
-    count:      0,
-    users:      [],
-    updatedAt:  new Date().toISOString(),
-  };
+    poster,
+    userId: user.id,
+  });
 
-  // Keep latest metadata fresh
-  entry.title = title;
-  if (poster) entry.poster_url = poster;
-
-  const alreadyFired = entry.users.includes(user.id);
-  if (alreadyFired) {
-    entry.users = entry.users.filter((id) => id !== user.id);
-    entry.count = Math.max(0, entry.count - 1);
-  } else {
-    entry.users.push(user.id);
-    entry.count += 1;
-  }
-  entry.updatedAt = new Date().toISOString();
-  store[key] = entry;
-  await writeFireStore(store);
-
-  return NextResponse.json({ count: entry.count, fired: !alreadyFired });
+  return NextResponse.json({ count, fired });
 }

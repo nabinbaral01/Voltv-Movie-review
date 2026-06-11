@@ -689,3 +689,41 @@ model RateLimitLog {
   @@index([identifier, action])
   @@map("rate_limit_log")
 }
+
+// ─────────────────────────────────────
+// MOVIE COMMENTS (verdict-based reviews on a movie/tv/episode scope)
+// ─────────────────────────────────────
+
+model MovieComment {
+  id         String   @id @default(cuid())
+  scope      String   // "550" | "tv:1399" | "tv:1399:s1:e1"
+  tmdb_id    Int      @default(0)
+  username   String
+  verdict    String?  // "skip" | "timepass" | "watchit" | "masterpiece"
+  rating     Int?
+  text       String   @db.Text
+  created_at DateTime @default(now())
+
+  @@index([scope])
+  @@index([created_at])
+  @@map("movie_comments")
+}
+
+// ─────────────────────────────────────
+// FIRES (🔥 most-discussed leaderboard, one row per movie/tv item)
+// ─────────────────────────────────────
+
+model Fire {
+  id         String   @id @default(cuid())
+  key        String   @unique // "${kind}:${tmdb_id}"
+  tmdb_id    Int
+  kind       String   // "movie" | "tv"
+  title      String
+  poster_url String?
+  count      Int      @default(0)
+  users      String[] @default([]) // user ids that have fired this item
+  updated_at DateTime @default(now()) @updatedAt
+
+  @@index([count])
+  @@map("fires")
+}
