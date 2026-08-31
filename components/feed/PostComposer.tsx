@@ -233,7 +233,7 @@ export default function PostComposer({ currentUser, redirectAfter }: Props) {
               <ImagePlus size={14} />
               {uploading ? "Uploading..." : "Media"}
             </button>
-            <input ref={fileRef} type="file" accept="image/*,video/mp4,video/webm,video/quicktime" multiple hidden onChange={onPickFile} />
+            <input ref={fileRef} type="file" accept="image/*" multiple hidden onChange={onPickFile} />
 
             <label className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-xs text-[#A0A0B0] hover:text-white cursor-pointer select-none">
               <input type="checkbox" checked={spoiler} onChange={(e) => setSpoiler(e.target.checked)} className="accent-[#E50914]" />

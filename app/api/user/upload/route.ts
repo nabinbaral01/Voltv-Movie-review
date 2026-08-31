@@ -1,20 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { createServerSupabaseClient, createAdminClient } from "@/lib/supabase-server";
+import { createServerSupabaseClient } from "@/lib/supabase-server";
 
-const BUCKET = "user-media";
 const MAX_BYTES = 5 * 1024 * 1024; // 5 MB
 const ALLOWED_IMG = new Set(["image/jpeg", "image/png", "image/webp", "image/gif"]);
-const ALLOWED_VID = new Set(["video/mp4", "video/webm", "video/quicktime"]);
-const MAX_VIDEO   = 25 * 1024 * 1024; // 25 MB
-
-let bucketEnsured = false;
-async function ensureBucket(admin: ReturnType<typeof createAdminClient>) {
-  if (bucketEnsured) return;
-  const { data } = await admin.storage.getBucket(BUCKET);
-  if (!data) await admin.storage.createBucket(BUCKET, { public: true });
-  bucketEnsured = true;
-}
 
 export async function POST(req: NextRequest) {
   const supabase = await createServerSupabaseClient();
@@ -38,40 +27,46 @@ export async function POST(req: NextRequest) {
   if (kind !== "avatar" && kind !== "banner" && kind !== "post") {
     return NextResponse.json({ error: "Invalid kind" }, { status: 400 });
   }
-  const isVideo = ALLOWED_VID.has(file.type);
-  const isImage = ALLOWED_IMG.has(file.type);
-  if (!isImage && !(isVideo && kind === "post")) {
-    return NextResponse.json({ error: "File type not allowed" }, { status: 400 });
+  if (!ALLOWED_IMG.has(file.type)) {
+    // Media lives in Postgres, so video is intentionally not accepted here.
+    return NextResponse.json(
+      { error: "Only JPEG, PNG, WebP or GIF images can be uploaded" },
+      { status: 400 },
+    );
   }
-  const limit = isVideo ? MAX_VIDEO : MAX_BYTES;
-  if (file.size > limit) {
-    return NextResponse.json({ error: `Max ${Math.round(limit / 1024 / 1024)} MB` }, { status: 400 });
-  }
-
-  const admin = createAdminClient();
-  await ensureBucket(admin);
-
-  const ext  = file.name.split(".").pop()?.toLowerCase() || "jpg";
-  const path = `${dbUser.id}/${kind}-${Date.now()}.${ext}`;
-  const buf  = Buffer.from(await file.arrayBuffer());
-
-  const { error: upErr } = await admin.storage
-    .from(BUCKET)
-    .upload(path, buf, { contentType: file.type, upsert: true });
-
-  if (upErr) {
-    return NextResponse.json({ error: upErr.message }, { status: 500 });
+  if (file.size > MAX_BYTES) {
+    return NextResponse.json({ error: `Max ${MAX_BYTES / 1024 / 1024} MB` }, { status: 400 });
   }
 
-  const { data: pub } = admin.storage.from(BUCKET).getPublicUrl(path);
-  const url = pub.publicUrl;
+  const buf = Buffer.from(await file.arrayBuffer());
+
+  const media = await prisma.media.create({
+    data: {
+      user_id:      dbUser.id,
+      kind,
+      content_type: file.type,
+      size_bytes:   buf.byteLength,
+      data:         buf,
+    },
+    select: { id: true },
+  });
+
+  // Same-origin URL served by app/api/media/[id]. Storing a relative path keeps
+  // the images working across localhost, previews and production alike.
+  const url = `/api/media/${media.id}`;
 
   if (kind === "avatar" || kind === "banner") {
     await prisma.user.update({
       where: { id: dbUser.id },
       data:  kind === "avatar" ? { avatar_url: url } : { banner_url: url },
     });
+
+    // Only the current avatar/banner is ever rendered — drop superseded ones
+    // so the table does not grow without bound.
+    await prisma.media.deleteMany({
+      where: { user_id: dbUser.id, kind, id: { not: media.id } },
+    });
   }
 
-  return NextResponse.json({ data: { url, kind, media_type: isVideo ? "video" : "image" } });
+  return NextResponse.json({ data: { url, kind, media_type: "image" } });
 }

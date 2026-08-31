@@ -129,6 +129,7 @@ model User {
   clubs_created       MovieClub[]
   reports_filed       Report[]         @relation("reporter")
   reports_received    Report[]         @relation("reported_user")
+  media               Media[]
 
   @@index([username])
   @@index([email])
@@ -136,6 +137,28 @@ model User {
   @@index([xp_points])
   @@index([created_at])
   @@map("users")
+}
+
+// ─────────────────────────────────────
+// UPLOADED MEDIA
+// ─────────────────────────────────────
+
+// Avatars and banners are stored as bytes here and served by /api/media/[id].
+// Keeps uploads working without depending on an external storage provider.
+model Media {
+  id           String   @id @default(cuid())
+  user_id      String
+  kind         String   @db.VarChar(16)
+  content_type String   @db.VarChar(64)
+  size_bytes   Int
+  data         Bytes
+  created_at   DateTime @default(now())
+
+  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@index([user_id])
+  @@index([created_at])
+  @@map("media")
 }
 
 // ─────────────────────────────────────

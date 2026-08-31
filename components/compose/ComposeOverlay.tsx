@@ -293,7 +293,7 @@ export default function ComposeOverlay({ onClose }: { onClose: () => void }) {
         <div className="px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-1">
             <ToolBtn icon={<ImagePlus size={18} />} label="Media" disabled={uploading || media.length >= 4} onClick={() => fileRef.current?.click()} />
-            <input ref={fileRef} type="file" accept="image/*,video/mp4,video/webm,video/quicktime" multiple hidden onChange={onPickFile} />
+            <input ref={fileRef} type="file" accept="image/*" multiple hidden onChange={onPickFile} />
             <ToolBtn icon={<Film size={18} />} label="Tag movie" onClick={() => setShowSearch(!showSearch)} active={showSearch || !!picked} />
             <ToolBtn icon={<AlertTriangle size={18} />} label="Spoiler" onClick={() => setSpoiler(!spoiler)} active={spoiler} />
             <ToolBtn icon={<EyeOff size={18} />} label="Anonymous" onClick={() => setAnonymous(!anonymous)} active={anonymous} />
