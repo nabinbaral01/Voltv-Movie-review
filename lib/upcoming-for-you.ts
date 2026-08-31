@@ -88,8 +88,15 @@ export async function getUpcomingForYou(
   let results;
   try {
     results = (await discoverMovies(params)).results;
-  } catch {
+  } catch (err) {
+    // The section renders nothing when this fails, so leave a trace rather
+    // than letting it disappear silently.
+    console.error("[upcoming-for-you] TMDB discover failed", params, err);
     return { items: [], genres: [], personalised: false };
+  }
+
+  if (results.length === 0) {
+    console.warn("[upcoming-for-you] TMDB returned no results for", params);
   }
 
   const items = results
