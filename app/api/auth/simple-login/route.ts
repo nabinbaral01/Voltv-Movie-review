@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
+import { randomUUID } from "node:crypto";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
-import { createAdminClient } from "@/lib/supabase-server";
 
 const COOKIE = "voltv_session";
 
@@ -41,33 +41,34 @@ export async function POST(req: NextRequest) {
 
     const hash = await bcrypt.hash(password, 10);
     const email = emailFor(username);
-    const sbPass = sbPasswordFor(password);
-    const admin = createAdminClient();
 
-    const { data: created, error: createErr } = await admin.auth.admin.createUser({
-      email,
-      password: sbPass,
-      email_confirm: true,
-      user_metadata: { username },
-    });
-    if (createErr || !created?.user) {
-      return NextResponse.json(
-        { error: `Could not create account: ${createErr?.message ?? "unknown"}` },
-        { status: 500 },
-      );
+    // Accounts live entirely in our own Postgres: the password is verified with
+    // bcrypt below and the session is our own cookie. supabase_id is just the
+    // stable user identity every route reads off that cookie, so we mint it
+    // locally instead of round-tripping to the Supabase Admin API.
+    const userId = randomUUID();
+
+    let created;
+    try {
+      created = await prisma.user.create({
+        data: {
+          supabase_id: userId,
+          username,
+          password_hash: hash,
+          email,
+        },
+      });
+    } catch (err) {
+      // Unique constraint — someone claimed the username between our check and insert
+      if (typeof err === "object" && err !== null && (err as { code?: string }).code === "P2002") {
+        return NextResponse.json({ error: "Username already taken" }, { status: 409 });
+      }
+      console.error("[signup] failed to create user", err);
+      return NextResponse.json({ error: "Could not create account" }, { status: 500 });
     }
 
-    await prisma.user.create({
-      data: {
-        supabase_id: created.user.id,
-        username,
-        password_hash: hash,
-        email,
-      },
-    });
-
     const jar = await cookies();
-    jar.set(COOKIE, created.user.id, {
+    jar.set(COOKIE, created.supabase_id, {
       httpOnly: true,
       sameSite: "lax",
       path: "/",
@@ -89,15 +90,24 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Wrong password" }, { status: 401 });
     }
   } else {
-    // Legacy user without password_hash — try Supabase auth and migrate
-    const { createServerSupabaseClient } = await import("@/lib/supabase-server");
-    const supabase = await createServerSupabaseClient();
-    const { error: signInErr } = await supabase.auth.signInWithPassword({
-      email: emailFor(username),
-      password: sbPasswordFor(password),
-    });
-    if (signInErr) {
-      return NextResponse.json({ error: "Wrong password" }, { status: 401 });
+    // Legacy user without password_hash — try Supabase auth and migrate.
+    // Supabase may be unreachable; that must not crash the login route.
+    try {
+      const { createServerSupabaseClient } = await import("@/lib/supabase-server");
+      const supabase = await createServerSupabaseClient();
+      const { error: signInErr } = await supabase.auth.signInWithPassword({
+        email: emailFor(username),
+        password: sbPasswordFor(password),
+      });
+      if (signInErr) {
+        return NextResponse.json({ error: "Wrong password" }, { status: 401 });
+      }
+    } catch (err) {
+      console.error("[login] legacy Supabase verification unavailable", err);
+      return NextResponse.json(
+        { error: "This account needs a password reset. Please use 'Forgot?' to contact an admin." },
+        { status: 503 },
+      );
     }
     // Migrate: save bcrypt hash for future logins
     const hash = await bcrypt.hash(password, 10);
