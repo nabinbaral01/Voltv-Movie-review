@@ -217,7 +217,7 @@ export default async function MoviePage({ params }: { params: Promise<{ id: stri
                 )}
 
                 {/* Streams On */}
-                <StreamsOn providers={providers} link={providersUS?.link} />
+                <StreamsOn providers={providers} link={providersUS?.link} title={movie.title} />
 
                 {/* Cast */}
                 {cast.length > 0 && (

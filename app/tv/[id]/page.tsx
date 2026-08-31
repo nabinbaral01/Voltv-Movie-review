@@ -168,7 +168,7 @@ export default async function TVPage({ params }: { params: Promise<{ id: string 
                 )}
 
                 {/* Streams On */}
-                <StreamsOn providers={providers} link={providersUS?.link} />
+                <StreamsOn providers={providers} link={providersUS?.link} title={show.name} />
 
                 {/* Cast */}
                 {cast.length > 0 && (
