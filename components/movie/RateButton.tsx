@@ -1,20 +1,24 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Star, X } from "lucide-react";
+import { Star, X, CalendarClock } from "lucide-react";
 import { toast } from "@/components/ui/Toast";
+import { formatReleaseDate } from "@/lib/release";
 
 interface Props {
   tmdbId:    number;
   mediaKind?: "movie" | "tv";
   title:     string;
   posterUrl?: string | null;
+  // Set for titles that have not come out yet: rating is replaced by a
+  // "Coming <date>" badge. The API rejects these ratings regardless.
+  unreleasedOn?: string | null;
 }
 
 const ACTIVE   = "#F5A623"; // single accent — yellow/orange
 const EMPTY    = "#3A3A4A";
 
-export default function RateButton({ tmdbId, mediaKind = "movie" }: Props) {
+export default function RateButton({ tmdbId, mediaKind = "movie", unreleasedOn = null }: Props) {
   const [score, setScore] = useState<number | null>(null); // 1–10
   const [hover, setHover] = useState<number | null>(null);
   const [busy,  setBusy]  = useState(false);
@@ -70,6 +74,20 @@ export default function RateButton({ tmdbId, mediaKind = "movie" }: Props) {
     } finally {
       setBusy(false);
     }
+  }
+
+  if (unreleasedOn) {
+    return (
+      <div
+        className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-3 py-1.5"
+        title="Ratings open once this title is released"
+      >
+        <CalendarClock size={14} className="text-[#F5A623]" />
+        <span className="text-[11px] uppercase tracking-wider text-[#A0A0B0] font-bold">
+          Coming {formatReleaseDate(unreleasedOn)}
+        </span>
+      </div>
+    );
   }
 
   const visual = hover ?? score ?? 0;

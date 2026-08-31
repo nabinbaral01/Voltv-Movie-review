@@ -6,6 +6,7 @@ import Link from "next/link";
 import { Film, Tv } from "lucide-react";
 import { posterUrl } from "@/lib/tmdb";
 import PosterActions from "@/components/movie/PosterActions";
+import { isUnreleased } from "@/lib/release";
 
 export interface FilmoItem {
   kind:        "movie" | "tv";
@@ -123,6 +124,7 @@ export default function Filmography({ items }: { items: FilmoItem[] }) {
                     kind={m.kind}
                     title={m.title}
                     posterUrl={fullPosterUrl}
+                    unreleased={isUnreleased(m.date)}
                   />
                 </div>
                 <Link href={href} className="block mt-1.5">

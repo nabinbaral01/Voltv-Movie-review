@@ -5,6 +5,7 @@ import { getRatingWeight, updateMovieScores } from "@/utils/voltv-score";
 import { awardXP } from "@/lib/xp-system";
 import { getMovieById, getTVById, extractTrailerKey } from "@/lib/tmdb";
 import { storageIdFor } from "@/lib/media-kind";
+import { isUnreleased, UNRELEASED_RATING_ERROR } from "@/lib/release";
 import type { Verdict } from "@/lib/comments";
 
 // Single-score quick-rate. Maps a 1-10 number to the 5-dimension Rating model
@@ -132,6 +133,11 @@ export async function POST(req: NextRequest) {
     movie = await ensureMovie(tmdbId, mediaKind);
   } catch {
     return NextResponse.json({ error: "Could not load from TMDB" }, { status: 502 });
+  }
+
+  // A title nobody could have seen yet must not collect scores.
+  if (isUnreleased(movie.release_date)) {
+    return NextResponse.json({ error: UNRELEASED_RATING_ERROR }, { status: 409 });
   }
 
   const weight = getRatingWeight(dbUser);

@@ -19,6 +19,7 @@ import ScoreMeter from "./_components/ScoreMeter";
 import FireButton from "@/components/movie/FireButton";
 import StarRating from "@/components/movie/StarRating";
 import RateButton from "@/components/movie/RateButton";
+import { isUnreleased } from "@/lib/release";
 import StreamsOn from "./_components/StreamsOn";
 import TrailerHero from "./_components/TrailerHero";
 import PosterDownloadButton from "@/components/movie/PosterDownloadButton";
@@ -118,6 +119,7 @@ export default async function MoviePage({ params }: { params: Promise<{ id: stri
                   const revenue = formatMoney((movie as { revenue?: number }).revenue);
                   const voteAvg  = (movie as { vote_average?: number }).vote_average;
                   const voteCount = (movie as { vote_count?: number }).vote_count;
+                  const notOutYet = isUnreleased(movie.release_date);
 
                   return (
                     <div className="flex gap-5 items-start">
@@ -140,6 +142,7 @@ export default async function MoviePage({ params }: { params: Promise<{ id: stri
                               mediaKind="movie"
                               title={movie.title}
                               posterUrl={poster}
+                              unreleasedOn={notOutYet ? movie.release_date : null}
                             />
                             {voltvCount > 0 && (
                               <div className="inline-flex items-center gap-2 pl-4 border-l border-white/10">
@@ -154,7 +157,7 @@ export default async function MoviePage({ params }: { params: Promise<{ id: stri
                               {movie.title}
                             </h1>
                             <div className="pt-2 flex items-center gap-2 flex-wrap">
-                              <WatchActions tmdbId={tmdbId} />
+                              <WatchActions tmdbId={tmdbId} unreleased={notOutYet} />
                               <FireButton
                                 tmdbId={tmdbId}
                                 kind="movie"

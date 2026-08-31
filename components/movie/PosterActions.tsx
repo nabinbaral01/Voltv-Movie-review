@@ -13,10 +13,14 @@ interface Props {
   posterUrl?: string | null;
   kind?: "movie" | "tv";
   showFire?: boolean;
+  // Not out yet: hide "watched" but keep watchlist and fires. The API rejects
+  // a watched mark on an unreleased title regardless of what the UI shows.
+  unreleased?: boolean;
 }
 
 export default function PosterActions({
   tmdbId, alwaysShowWatched, title, posterUrl, kind = "movie", showFire = true,
+  unreleased = false,
 }: Props) {
   const status = useWatchStatus(tmdbId);
   const [busy, setBusy] = useState<"watched" | "want_to_watch" | null>(null);
@@ -67,17 +71,19 @@ export default function PosterActions({
         showEyeAlways ? "opacity-100" : "opacity-0 group-hover:opacity-100 focus-within:opacity-100"
       }`}
     >
-      <IconButton
-        onClick={(e) => act(e, "watched")}
-        active={isWatched}
-        busy={busy === "watched"}
-        title={isWatched ? "Watched" : "Mark as watched"}
-        activeColor="#22c55e"
-      >
-        {busy === "watched"
-          ? <Loader2 size={14} className="animate-spin" />
-          : <Eye size={14} />}
-      </IconButton>
+      {!unreleased && (
+        <IconButton
+          onClick={(e) => act(e, "watched")}
+          active={isWatched}
+          busy={busy === "watched"}
+          title={isWatched ? "Watched" : "Mark as watched"}
+          activeColor="#22c55e"
+        >
+          {busy === "watched"
+            ? <Loader2 size={14} className="animate-spin" />
+            : <Eye size={14} />}
+        </IconButton>
+      )}
       <IconButton
         onClick={(e) => act(e, "want_to_watch")}
         active={isWantWatch}

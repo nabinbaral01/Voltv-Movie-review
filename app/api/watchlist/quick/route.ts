@@ -6,6 +6,7 @@ import { updateStreak } from "@/lib/heatmap";
 import { deleteCache, CacheKeys } from "@/lib/redis";
 import { getMovieById, getTVById, extractTrailerKey } from "@/lib/tmdb";
 import { TV_TMDB_OFFSET } from "@/lib/media-kind";
+import { isUnreleased, UNRELEASED_WATCHED_ERROR } from "@/lib/release";
 
 // POST { tmdb_id, kind: "watched" | "want_to_watch", media_kind?: "movie" | "tv" }
 // Ensures the movie/show exists locally, then upserts a WatchHistory row.
@@ -89,6 +90,11 @@ export async function POST(req: NextRequest) {
     } catch {
       return NextResponse.json({ error: "Could not fetch from TMDB" }, { status: 502 });
     }
+  }
+
+  // "Want to watch" is fine for an upcoming title; "watched" is not.
+  if (kind === "watched" && isUnreleased(movie.release_date)) {
+    return NextResponse.json({ error: UNRELEASED_WATCHED_ERROR }, { status: 409 });
   }
 
   const existing = await prisma.watchHistory.findUnique({

@@ -7,6 +7,7 @@ import { cn, formatScore, formatRuntime, extractYear, scoreColor } from "@/utils
 import { posterUrl } from "@/lib/tmdb";
 import { decodeStorageId } from "@/lib/media-kind";
 import PosterActions from "./PosterActions";
+import { isUnreleased } from "@/lib/release";
 import type { MovieCard as MovieCardType } from "@/types";
 
 interface MovieCardProps {
@@ -28,6 +29,9 @@ export default function MovieCard({
 }: MovieCardProps) {
   const [imageError, setImageError] = useState(false);
   const [hovered, setHovered] = useState(false);
+
+  // is_upcoming is never written, so derive the state from the release date.
+  const notOutYet = movie.is_upcoming || isUnreleased(movie.release_date);
 
   const sizeClasses = {
     sm: "w-[120px]",
@@ -92,7 +96,7 @@ export default function MovieCard({
         </div>
 
         {/* Upcoming badge */}
-        {movie.is_upcoming && (
+        {notOutYet && (
           <div className="absolute top-2 left-2 bg-[#F5A623] text-black text-[10px] font-bold px-2 py-0.5 rounded-[4px]">
             UPCOMING
           </div>
@@ -105,6 +109,7 @@ export default function MovieCard({
           alwaysShowWatched
           title={movie.title}
           posterUrl={movie.poster_url}
+          unreleased={notOutYet}
         />
       </div>
 

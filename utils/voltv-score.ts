@@ -101,19 +101,24 @@ export async function recalculateVoltVScore(movieId: string): Promise<VoltVScore
     ? Math.round((weighted_score / total_weight) * 10) / 10
     : 0;
 
+  // n is 0 once the last rating is removed — divide through it and every
+  // percentage becomes NaN, which then fails to persist.
+  const pct = (count: number) => (n > 0 ? Math.round((count / n) * 100) : 0);
+  const avg = (sum: number) => (n > 0 ? Math.round((sum / n) * 10) / 10 : 0);
+
   return {
     voltv_score: Math.min(10, Math.max(0, voltv_score)),
-    skip_pct:        Math.round((verdict_counts.skip        / n) * 100),
-    timepass_pct:    Math.round((verdict_counts.timepass    / n) * 100),
-    watchit_pct:     Math.round((verdict_counts.watchit     / n) * 100),
-    masterpiece_pct: Math.round((verdict_counts.masterpiece / n) * 100),
+    skip_pct:        pct(verdict_counts.skip),
+    timepass_pct:    pct(verdict_counts.timepass),
+    watchit_pct:     pct(verdict_counts.watchit),
+    masterpiece_pct: pct(verdict_counts.masterpiece),
     total_ratings: n,
     dimension_avgs: {
-      story:     Math.round((dim_sums.story     / n) * 10) / 10,
-      direction: Math.round((dim_sums.direction / n) * 10) / 10,
-      acting:    Math.round((dim_sums.acting    / n) * 10) / 10,
-      visuals:   Math.round((dim_sums.visuals   / n) * 10) / 10,
-      rewatch:   Math.round((dim_sums.rewatch   / n) * 10) / 10,
+      story:     avg(dim_sums.story),
+      direction: avg(dim_sums.direction),
+      acting:    avg(dim_sums.acting),
+      visuals:   avg(dim_sums.visuals),
+      rewatch:   avg(dim_sums.rewatch),
     },
   };
 }

@@ -6,7 +6,15 @@ import { toast } from "@/components/ui/Toast";
 
 type Status = "watched" | "want_to_watch" | null;
 
-export default function WatchActions({ tmdbId }: { tmdbId: number }) {
+// unreleased: the "watched" toggle is hidden for titles that are not out yet.
+// Watchlist stays available — wanting to see an upcoming film is the point.
+export default function WatchActions({
+  tmdbId,
+  unreleased = false,
+}: {
+  tmdbId: number;
+  unreleased?: boolean;
+}) {
   const [status, setStatus] = useState<Status>(null);
 
   useEffect(() => {
@@ -49,6 +57,7 @@ export default function WatchActions({ tmdbId }: { tmdbId: number }) {
 
   return (
     <div className="flex items-center gap-2">
+      {!unreleased && (
       <button
         onClick={() => toggle("watched")}
         title={watched ? "Watched" : "Mark as watched"}
@@ -60,6 +69,7 @@ export default function WatchActions({ tmdbId }: { tmdbId: number }) {
       >
         {watched ? <Check size={16} /> : <Eye size={16} />}
       </button>
+      )}
       <button
         onClick={() => toggle("want_to_watch")}
         title={wanted ? "In watchlist" : "Add to watchlist"}
