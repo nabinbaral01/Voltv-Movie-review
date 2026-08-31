@@ -7,7 +7,9 @@ import Sidebar, { BottomNav } from "@/components/layout/Sidebar";
 import { TierBadge, LevelBadge } from "@/components/ui/Badge";
 import VerifiedBadge from "@/components/ui/VerifiedBadge";
 import { formatCount } from "@/utils/formatters";
-import { Crown, Trophy, Medal, Flame, Film, MessageSquare, TrendingUp } from "lucide-react";
+import { Crown, Trophy, Medal, Flame, Film, MessageSquare, TrendingUp, CalendarClock } from "lucide-react";
+import MovieCardComponent from "@/components/movie/MovieCard";
+import { getUpcomingForYou } from "@/lib/upcoming-for-you";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = { title: "Leaderboard" };
@@ -31,6 +33,8 @@ export default async function LeaderboardPage() {
     getLeaderboard(),
     getSessionUser(),
   ]);
+
+  const upcoming = await getUpcomingForYou(me?.id ?? null);
 
   const meRank = me
     ? users.findIndex((u) => u.id === me.id)
@@ -92,6 +96,30 @@ export default async function LeaderboardPage() {
                   </div>
                   <div className="text-[10px] text-[#505060] uppercase tracking-wider mt-0.5">XP</div>
                 </div>
+              </div>
+            </section>
+          )}
+
+          {/* Upcoming, matched to what this user actually watches */}
+          {upcoming.items.length > 0 && (
+            <section className="px-4 sm:px-6 pt-6">
+              <div className="flex items-center justify-between mb-3 px-1 gap-3">
+                <h2 className="text-xs font-semibold text-[#505060] uppercase tracking-wider flex items-center gap-1.5">
+                  <CalendarClock size={12} />
+                  {upcoming.personalised ? "Upcoming for you" : "Upcoming worldwide"}
+                </h2>
+                {upcoming.personalised && (
+                  <span className="text-[10px] text-[#505060] truncate">
+                    based on your {upcoming.genres.slice(0, 2).join(" & ")}
+                  </span>
+                )}
+              </div>
+              <div className="flex gap-3 overflow-x-auto no-scrollbar pb-1">
+                {upcoming.items.map((m) => (
+                  <div key={m.tmdb_id} className="shrink-0">
+                    <MovieCardComponent movie={m} size="sm" showScore={false} />
+                  </div>
+                ))}
               </div>
             </section>
           )}

@@ -121,6 +121,7 @@ export async function discoverMovies(params: DiscoverParams) {
   if (params.primary_release_year) p.primary_release_year = String(params.primary_release_year);
   if (params.with_origin_country) p.with_origin_country = params.with_origin_country;
   if (params.with_original_language) p.with_original_language = params.with_original_language;
+  if (params["primary_release_date.gte"]) p["primary_release_date.gte"] = params["primary_release_date.gte"];
   if (params["release_date.gte"]) p["release_date.gte"] = params["release_date.gte"];
   if (params["release_date.lte"]) p["release_date.lte"] = params["release_date.lte"];
   if (params["vote_average.gte"]) p["vote_average.gte"] = String(params["vote_average.gte"]);
@@ -421,6 +422,10 @@ export interface DiscoverParams {
   primary_release_year?: number;
   with_origin_country?: string;
   with_original_language?: string;
+  // release_date.* matches ANY regional release record, so a title whose
+  // primary date has passed still comes back. primary_release_date.* filters
+  // on the date the API actually returns as release_date.
+  "primary_release_date.gte"?: string;
   "release_date.gte"?: string;
   "release_date.lte"?: string;
   "vote_average.gte"?: number;
