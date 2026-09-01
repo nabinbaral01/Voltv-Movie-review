@@ -20,6 +20,7 @@ import WeeklyLeaderboard from "./WeeklyLeaderboard";
 import MostDiscussedSidebar from "@/components/discover/MostDiscussedSidebar";
 import { readFireStore, topFires } from "@/lib/fires";
 import ForYouRow from "./ForYouRow";
+import UpcomingForYouRow from "./UpcomingForYouRow";
 import PostComposer from "@/components/feed/PostComposer";
 import PostCard from "@/components/feed/PostCard";
 import { prisma } from "@/lib/prisma";
@@ -81,6 +82,9 @@ export default async function FeedPage() {
         <main className="flex-1 min-w-0 px-4 py-6 space-y-10 pb-24 lg:pb-8">
           <Suspense fallback={<Skeleton className="w-full h-48 rounded-2xl" />}>
             <ForYouRow />
+          </Suspense>
+          <Suspense fallback={<Skeleton className="w-full h-64 rounded-2xl" />}>
+            <UpcomingForYouRow />
           </Suspense>
           {talkOfTown.length > 0 && (
             <MovieRow title="Talk of the Town" movies={talkOfTown} size="md" viewAllHref="/discover?sort=trending" />
